@@ -1,29 +1,35 @@
-import httpx
-from typing import TypedDict
+import logging
+import os
+from pathlib import Path
 
-PRICE_API_URL = "https://fapi.binance.com/fapi/v1/ticker/price"
-TICKER_BLACKLIST = ["USDC"]
+BASE_DIR = Path(__file__).resolve().parent
+
+LOG_FILE = BASE_DIR / "debug.log"
+
+class UnbufferedFileHandler(logging.FileHandler):
+    """FileHandler без буферизации: каждый emit сразу пишется на диск."""
+    def emit(self, record: logging.LogRecord) -> None:
+        super().emit(record)
+        self.flush()
+        os.fsync(self.stream.fileno())
 
 
-class PriceInfo(TypedDict):
-    symbol: str
-    price: str
-    time: int
+logger = logging.getLogger("trading_app")
+logger.setLevel(logging.DEBUG)
 
-async def fetch_price_info() -> list[PriceInfo]:
-    """Асинхронно получает цены с Binance и отбрасывает пары из черного списка.
+file_handler = UnbufferedFileHandler(LOG_FILE, mode="a", encoding="utf-8")
+file_handler.setLevel(logging.ERROR)
 
-    Returns:
-        list[PriceInfo]: Список словарей с полями:
-            - symbol (str): Название торговой пары
-            - price (str): Цена в виде строки
-            - time (int): Временная метка (UNIX time в миллисекундах)
-    """
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(PRICE_API_URL)
-        data = resp.json()
-        lower_blacklist = [ticker.lower() for ticker in TICKER_BLACKLIST]
-        return [
-            i for i in data
-            if not any(blacklisted in i["symbol"].lower() for blacklisted in lower_blacklist)
-        ]
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(logging.WARNING)
+
+formatter = logging.Formatter(
+    fmt="%(asctime)s - %(levelname)s - %(name)s - "
+        "%(filename)s:%(lineno)d - %(message)s"
+)
+
+file_handler.setFormatter(formatter)
+stream_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
+logger.addHandler(stream_handler)
