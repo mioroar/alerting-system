@@ -18,7 +18,7 @@ logger = logging.getLogger("trading_app")
 logger.setLevel(logging.DEBUG)
 
 file_handler = UnbufferedFileHandler(LOG_FILE, mode="a", encoding="utf-8")
-file_handler.setLevel(logging.ERROR)
+file_handler.setLevel(logging.INFO)
 
 stream_handler = logging.StreamHandler()
 stream_handler.setLevel(logging.WARNING)
