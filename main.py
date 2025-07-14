@@ -1,11 +1,15 @@
 import asyncio
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv(), override=True)
+
 from bot.bot import main as bot_main
-from modules.price.tracker.logic import fetch_price_info
+from db.init_db import init_db
+
 
 async def main():
+    await init_db()
     await bot_main()
-    price_info = await fetch_price_info()
-    print(price_info)
 
 if __name__ == "__main__":
     asyncio.run(main())
