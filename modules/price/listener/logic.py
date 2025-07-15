@@ -4,12 +4,13 @@ from bot.settings import bot
 
 class Listener:
     """
-    Класс для отслеживания одного уникального рыночного условия и уведомления подписчиков.
+    Класс для отслеживания одного уникального условия изменения цены и уведомления подписчиков.
 
     Args:
         condition_id (str): Уникальный идентификатор условия.
         percent (float): Процент изменения цены (например, 5.0).
         interval (int): Интервал в секундах (например, 60).
+        subscribers (List[int]): Список Telegram‑ID пользователей, подписанных на это условие.
     """
     def __init__(self, condition_id: str, percent: float, interval: int) -> None:
         self.condition_id = condition_id
@@ -26,23 +27,53 @@ class Listener:
         return self.condition_id
 
     def add_subscriber(self, user_id: int) -> None:
-        """Добавляет user_id в список подписчиков, если его там нет."""
+        """Регистрирует пользователя в списке подписчиков.
+
+        Пользователь добавляется только один раз; повторные вызовы с тем же
+        user_id игнорируются.
+
+        Args:
+            user_id (int): Telegram‑ID пользователя.
+        """
         if user_id not in self.subscribers:
             self.subscribers.append(user_id)
 
     def remove_subscriber(self, user_id: int) -> None:
-        """Удаляет user_id из списка подписчиков, если он там есть."""
+        """Удаляет пользователя из списка подписчиков.
+
+        Если ``user_id`` отсутствует в списке, метод ничего не делает.
+
+        Args:
+            user_id (int): Telegram‑ID пользователя.
+        """
         if user_id in self.subscribers:
             self.subscribers.remove(user_id)
 
     async def notify_subscribers(self, text: str) -> None:
-        """Уведомляет всех подписчиков"""
+        """Отправляет текстовое уведомление каждому подписчику.
+
+        Args:
+            text (str): Готовое сообщение для рассылки.
+        """
         for user_id in self.subscribers:
             print(f"Alert for user {user_id}: {text}")
             await bot.send_message(user_id, text)
 
     async def check_and_notify(self, db_pool: asyncpg.Pool) -> None:
-        """Ищет тикеры, превысившие порог, и уведомляет подписчиков."""
+        """Проверяет изменение цены и при необходимости отправляет оповещение.
+
+        Алгоритм:
+
+        1. Извлекает из БД последнюю цену (current_price) для каждого тикера.
+        2. Находит цену этого же тикера `interval` секунд назад (past_price).
+        3. Сравнивает относительное изменение с порогом percent.
+        4. Формирует и рассылает уведомление подписчикам, если условие
+           выполняется.
+
+        Args:
+            db_pool (asyncpg.Pool): Пул соединений с базой данных PostgreSQL,
+                содержащей таблицу price.
+        """
         if not self.subscribers:
             return
 
@@ -90,6 +121,15 @@ class Listener:
 
     @staticmethod
     def _calc_percent_change(current: float, past: float) -> float:
+        """Вычисляет модуль процентного изменения между двумя ценами.
+
+        Args:
+            current (float): Текущая (более свежая) цена.
+            past (float): Цена во временной точке ``interval`` секунд назад.
+
+        Returns:
+            float: Положительное процентное изменение (0.0, если ``past`` == 0).
+        """
         if past == 0:
             return 0.0
         return abs((current - past) / past) * 100

@@ -10,6 +10,9 @@ async def _get_trading_symbols(client: httpx.AsyncClient) -> set[str]:
     """Возвращает кэш-сет всех символов со status == "TRADING"
 
     Кэш живёт _CACHE_TTL_SEC секунд, чтобы не бомбить API при каждом цикле.
+
+    Args:
+        client (httpx.AsyncClient): Асинхронный клиент для запросов.
     """
     global _cached_symbols_ts, _cached_symbols
 
