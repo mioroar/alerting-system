@@ -6,4 +6,4 @@ standart_router = Router()
 
 @standart_router.message(Command("start"))
 async def start_handler(message: Message):
-    await message.answer("Hello, world!")
+    await message.answer("Здарова, заебал")
