@@ -75,7 +75,7 @@ async def _stream(symbols: Sequence[str]) -> None:
 
                 buffer.append({
                     "symbol": data["s"], 
-                    "volume": kline["v"], 
+                    "volume": kline["q"], 
                     "time": kline["T"]
                 })
 
