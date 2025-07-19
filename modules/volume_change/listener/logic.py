@@ -115,8 +115,8 @@ class VolumeListener:
                 text = (
                     f"Объём {row['symbol']} за последние {self.interval} с "
                     f"{'вырос' if change > 0 else 'упал'} на {abs(change):.2f} %."
-                    f"Текущий объём: {row['cur_vol']}"
-                    f"Прошлый объём: {row['prev_vol']}"
+                    f"\nТекущий объём: {row['cur_vol']}"
+                    f"\nПрошлый объём: {row['prev_vol']}"
                 )
                 await self._notify_subscribers(text)
 
