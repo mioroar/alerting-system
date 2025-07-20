@@ -3,10 +3,10 @@ import asyncpg
 from typing import Dict, List
 
 from db.logic import get_pool
-from modules.volume_change.listener.logic import VolumeListener
+from modules.volume_change.listener.logic import VolumeChangeListener
 
 
-class VolumeListenerManager:
+class VolumeChangeListenerManager:
     """Управляет жизненным циклом VolumeListener объектов и их фоновых задач.
     
     Класс отвечает за создание, хранение и удаление слушателей объёма торгов,
@@ -20,7 +20,7 @@ class VolumeListenerManager:
 
     def __init__(self) -> None:
         """Инициализирует менеджер с пустыми коллекциями слушателей и задач."""
-        self._listeners: Dict[str, VolumeListener] = {}
+        self._listeners: Dict[str, VolumeChangeListener] = {}
         self._tasks: Dict[str, asyncio.Task] = {}
 
     def get_condition_id(self, params: dict) -> str:
@@ -38,7 +38,7 @@ class VolumeListenerManager:
         """
         return str(hash((params["percent"], params["interval"], params["direction"])))
 
-    async def add_listener(self, params: dict, user_id: int) -> VolumeListener:
+    async def add_listener(self, params: dict, user_id: int) -> VolumeChangeListener:
         """Создаёт или находит существующий слушатель и подписывает пользователя.
         
         Если слушатель с данными параметрами уже существует, добавляет пользователя
@@ -54,7 +54,7 @@ class VolumeListenerManager:
         cid = self.get_condition_id(params)
 
         if cid not in self._listeners:
-            listener = VolumeListener(cid, params["percent"], params["interval"], params["direction"])
+            listener = VolumeChangeListener(cid, params["percent"], params["interval"], params["direction"])
             self._listeners[cid] = listener
 
             db_pool: asyncpg.Pool = await get_pool()
@@ -97,14 +97,14 @@ class VolumeListenerManager:
             del self._tasks[condition_id]
         self._listeners.pop(condition_id, None)
 
-    def get_all_user_listeners(self, user_id: int) -> List[VolumeListener]:
+    def get_all_user_listeners(self, user_id: int) -> List[VolumeChangeListener]:
         """Возвращает список всех слушателей, на которые подписан пользователь.
         
         Args:
             user_id (int): Идентификатор пользователя.
             
         Returns:
-            List[VolumeListener]: Список слушателей, содержащих пользователя в подписчиках.
+            List[VolumeChangeListener]: Список слушателей, содержащих пользователя в подписчиках.
         """
         return [l for l in self._listeners.values() if user_id in l.subscribers]
 
@@ -121,7 +121,7 @@ class VolumeListenerManager:
             listener.remove_subscriber(user_id)
 
     async def _run_listener_periodically(
-        self, listener: VolumeListener, db_pool: asyncpg.Pool
+        self, listener: VolumeChangeListener, db_pool: asyncpg.Pool
     ) -> None:
         """Запускает бесконечный цикл проверки условий слушателя.
         
@@ -129,7 +129,7 @@ class VolumeListenerManager:
         заданным в самом слушателе. Выполняется как фоновая асинхронная задача.
         
         Args:
-            listener (VolumeListener): Слушатель для периодической проверки.
+            listener (VolumeChangeListener): Слушатель для периодической проверки.
             db_pool (asyncpg.Pool): Пул соединений с базой данных.
         """
         while True:
@@ -137,15 +137,15 @@ class VolumeListenerManager:
             await asyncio.sleep(listener.interval)
 
 
-volume_listener_manager = VolumeListenerManager()
+volume_change_listener_manager = VolumeChangeListenerManager()
 
-async def get_volume_listener_manager() -> VolumeListenerManager:
+async def get_volume_change_listener_manager() -> VolumeChangeListenerManager:
     """Возвращает экземпляр синглтона менеджера слушателей объёма.
     
     Ленивая фабрика для получения глобального экземпляра VolumeListenerManager.
     Обеспечивает единую точку доступа к менеджеру в рамках приложения.
     
     Returns:
-        VolumeListenerManager: Глобальный экземпляр менеджера слушателей.
+        VolumeChangeListenerManager: Глобальный экземпляр менеджера слушателей.
     """
-    return volume_listener_manager
+    return volume_change_listener_manager

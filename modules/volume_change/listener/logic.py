@@ -4,7 +4,7 @@ from typing import List
 from bot.settings import bot
 
 
-class VolumeListener:
+class VolumeChangeListener:
     """Следит за относительным изменением суммы объёма за два соседних окна.
 
     Класс отслеживает изменения объёма торгов для различных торговых символов
@@ -20,7 +20,7 @@ class VolumeListener:
     def __init__(
         self, condition_id: str, percent: float, interval: int, direction: str
     ) -> None:
-        """Инициализирует объект VolumeListener.
+        """Инициализирует объект VolumeChangeListener.
 
         Args:
             condition_id (str): Уникальный идентификатор условия.
