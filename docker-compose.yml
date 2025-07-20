@@ -2,10 +2,12 @@ version: '3.8'
 
 services:
   timescaledb:
-    image: timescale/timescaledb:latest-pg14
+    image: timescale/timescaledb:latest-pg16
     container_name: timescaledb
-    env_file:
-      - .env
+    environment:
+      - POSTGRES_DB=alerts
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     ports:
       - "55432:5432"
     volumes:
@@ -14,8 +16,9 @@ services:
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin4
-    env_file:
-      - .env
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
     ports:
       - "55050:80"
     depends_on:
