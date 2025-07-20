@@ -3,10 +3,10 @@ import asyncpg
 from typing import Dict, List
 
 
-from modules.price.listener.logic import Listener
+from modules.price.listener.logic import PriceListener
 from db.logic import get_pool
 
-class ListenerManager:
+class PriceListenerManager:
     """Управляет жизненным циклом объектов Listener
 
     Каждый Listener идентифицируется condition_id, вычисляемым из параметров
@@ -21,7 +21,7 @@ class ListenerManager:
             Listener.check_and_notify.
     """
     def __init__(self):
-        self.listeners: Dict[str, Listener] = {}
+        self.listeners: Dict[str, PriceListener] = {}
         self.tasks: Dict[str, asyncio.Task] = {}
         
     def get_condition_id(self, params: dict) -> str:
@@ -34,9 +34,9 @@ class ListenerManager:
             str: Строковый хеш‑идентификатор, однозначно определяющий пару
                 (percent, interval).
         """
-        return str(hash((params["percent"], params["interval"])))
+        return str(hash((params["percent"], params["interval"], params["direction"])))
     
-    async def _run_listener_periodically(self, listener: Listener, db_pool: asyncpg.Pool) -> None:
+    async def _run_listener_periodically(self, listener: PriceListener, db_pool: asyncpg.Pool) -> None:
         """Бесконечно вызывает listener.check_and_notify с задержкой.
 
         Args:
@@ -48,7 +48,7 @@ class ListenerManager:
             await listener.check_and_notify(db_pool)
             await asyncio.sleep(listener.interval)
     
-    async def add_listener(self, params: dict, user_id: int) -> Listener:
+    async def add_listener(self, params: dict, user_id: int) -> PriceListener:
         """Регистрирует пользователя на получение уведомлений.
 
         Если Listener с заданными параметрами не существует, он создаётся и
@@ -58,15 +58,17 @@ class ListenerManager:
         Args:
             params (dict): Параметры условия (ключи percent, interval).
             user_id (int): Telegram‑ID подписчика.
+            direction (str): Направление изменения ('>' или '<').
 
         Returns:
             Listener: Экземпляр, на который был подписан пользователь.
         """
         condition_id = self.get_condition_id(params)
         if condition_id not in self.listeners:
-            listener = Listener(condition_id,
+            listener = PriceListener(condition_id,
                                 params["percent"],
-                                params["interval"])
+                                params["interval"],
+                                params["direction"])
             self.listeners[condition_id] = listener
             db_pool = await get_pool()
             self.tasks[condition_id] = asyncio.create_task(
@@ -104,7 +106,7 @@ class ListenerManager:
             if not listener.subscribers:
                 await self.remove_listener(condition_id)
 
-    def get_all_user_listeners(self, user_id: int) -> List[Listener]:
+    def get_all_user_listeners(self, user_id: int) -> List[PriceListener]:
         """Возвращает все Listener, на которые подписан пользователь.
 
         Args:
@@ -125,15 +127,15 @@ class ListenerManager:
             if user_id in listener.subscribers:
                 listener.remove_subscriber(user_id)
 
-listener_manager = ListenerManager()
+price_listener_manager = PriceListenerManager()
 
-async def get_listener_manager() -> ListenerManager:
+async def get_price_listener_manager() -> PriceListenerManager:
     """Возвращает (и при необходимости создаёт) глобальный ListenerManager.
 
     Returns:
         ListenerManager: Глобальный экземпляр менеджера.
     """
-    global listener_manager
-    if listener_manager is None:
-        listener_manager = ListenerManager()
-    return listener_manager
+    global price_listener_manager
+    if price_listener_manager is None:
+        price_listener_manager = PriceListenerManager()
+    return price_listener_manager

@@ -5,7 +5,7 @@ from aiogram.enums import ParseMode
 from .modules.price import price_router
 from .modules.volume import volume_router
 from .modules.volume_change import volume_change_router
-from modules.price.listener.manager import get_listener_manager
+from modules.price.listener.manager import get_price_listener_manager
 from modules.volume.listener.manager import get_volume_amount_listener_manager
 from modules.volume_change.listener.manager import get_volume_change_listener_manager
 
@@ -31,7 +31,7 @@ async def get_all_listeners_handler(message: Message) -> None:
     user_id = message.from_user.id
     
     # Получаем все листенеры пользователя
-    price_manager = await get_listener_manager()
+    price_manager = await get_price_listener_manager()
     volume_amount_manager = await get_volume_amount_listener_manager()
     volume_change_manager = await get_volume_change_listener_manager()
     
@@ -46,7 +46,7 @@ async def get_all_listeners_handler(message: Message) -> None:
         response_parts.append("<b>💰 Подписки на изменения цены:</b>")
         for listener in price_listeners:
             response_parts.append(
-                f"• Изменение цены > {listener.percent}% за {listener.interval} сек.\n"
+                f"• Изменение цены {listener.direction} {listener.percent}% за {listener.interval} сек.\n"
                 f"  ID: <code>{listener.get_condition_id()}</code>"
             )
     

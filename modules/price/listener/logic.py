@@ -2,7 +2,7 @@ import asyncpg
 from typing import List
 from bot.settings import bot
 
-class Listener:
+class PriceListener:
     """
     Класс для отслеживания одного уникального условия изменения цены и уведомления подписчиков.
 
@@ -10,12 +10,14 @@ class Listener:
         condition_id (str): Уникальный идентификатор условия.
         percent (float): Процент изменения цены (например, 5.0).
         interval (int): Интервал в секундах (например, 60).
+        direction (str): Направление изменения ('>' или '<').
         subscribers (List[int]): Список Telegram‑ID пользователей, подписанных на это условие.
     """
-    def __init__(self, condition_id: str, percent: float, interval: int) -> None:
+    def __init__(self, condition_id: str, percent: float, interval: int, direction: str ) -> None:
         self.condition_id = condition_id
         self.percent = percent
         self.interval = interval
+        self.direction = direction
         self.subscribers: List[int] = []
 
     def get_condition_id(self) -> str:
@@ -110,27 +112,23 @@ class Listener:
             return
 
         for row in rows:
-            change = self._calc_percent_change(row["current_price"], row["past_price"])
-            if change >= self.percent:
-                direction = "выросла" if row["current_price"] > row["past_price"] else "упала"
-                message = (
-                    f"Цена {row['symbol']} {direction} на {change:.2f}% "
-                    f"за {self.interval} секунд."
-                )
-                await self.notify_subscribers(message)
+            if self._trigger(row["current_price"], row["past_price"]):
+                change = ((row["current_price"] - row["past_price"]) / row["past_price"]) * 100
+                direction_str = "выросла" if change > 0 else "упала"
+                text = f"Цена {row['symbol']} {direction_str} на {abs(change):.2f}% за {self.interval} секунд."
+                await self.notify_subscribers(text)
 
-    @staticmethod
-    def _calc_percent_change(current: float, past: float) -> float:
-        """Вычисляет модуль процентного изменения между двумя ценами.
-
-        Args:
-            current (float): Текущая (более свежая) цена.
-            past (float): Цена во временной точке ``interval`` секунд назад.
-
-        Returns:
-            float: Положительное процентное изменение (0.0, если ``past`` == 0).
+    def _trigger(self, current: float, past: float) -> bool:
+        """
+        Проверяет выполнение условия изменения цены:
+        - Если direction == '>', алерт если изменение > percent или < -percent
+        - Если direction == '<', алерт если изменение в диапазоне [-percent, percent]
         """
         if past == 0:
-            return 0.0
-        return abs((current - past) / past) * 100
-
+            return False
+        change = ((current - past) / past) * 100
+        if self.direction == ">":
+            return change > self.percent or change < -self.percent
+        elif self.direction == "<":
+            return -self.percent <= change <= self.percent
+        return False
