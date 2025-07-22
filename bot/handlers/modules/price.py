@@ -14,7 +14,7 @@ async def price_handler(message: Message) -> None:
     - percent: Процент изменения цены.
     - interval: Интервал в секундах.
 
-    Пример: /price 5 60 >
+    Пример: /price > 5 60
 
     Если PriceListener с такими параметрами уже существует, пользователь просто
     добавляется в список подписчиков.
@@ -23,15 +23,15 @@ async def price_handler(message: Message) -> None:
         message: Сообщение с командой.
     """
     try:
-        _, percent, interval, direction = message.text.split()
+        _, direction, percent, interval = message.text.split()
         percent = float(percent)
         interval = int(interval)
         user_id = message.from_user.id
 
         params = {
+            "direction": direction,
             "percent": percent,
             "interval": interval,
-            "direction": direction
         }
 
         price_listener_manager = await get_price_listener_manager()
@@ -44,7 +44,7 @@ async def price_handler(message: Message) -> None:
             f"Вы подписаны на условие: изменение цены {direction} {percent}% за {interval} сек."
         )
     except Exception as e:
-        await message.answer(f"Ошибка: {e}\nПример: /price 5 60")
+        await message.answer(f"Ошибка: {e}\nПример: /price > 5 60")
 
 
 @price_router.message(Command("get_all_price_listeners"))

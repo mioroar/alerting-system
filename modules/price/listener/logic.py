@@ -1,84 +1,16 @@
 import asyncpg
-from typing import List
-from bot.settings import bot
+from modules.listener import Listener
 
-class PriceListener:
+class PriceListener(Listener):
     """
-    Класс для отслеживания одного уникального условия изменения цены и уведомления подписчиков.
-
-    Args:
-        condition_id (str): Уникальный идентификатор условия.
-        percent (float): Процент изменения цены (например, 5.0).
-        interval (int): Интервал в секундах (например, 60).
-        direction (str): Направление изменения ('>' или '<').
-        subscribers (List[int]): Список Telegram‑ID пользователей, подписанных на это условие.
+    Лисенер изменения цены
     """
-    def __init__(self, condition_id: str, percent: float, interval: int, direction: str ) -> None:
-        self.condition_id = condition_id
-        self.percent = percent
-        self.interval = interval
-        self.direction = direction
-        self.subscribers: List[int] = []
+    async def update_state(self, db_pool: asyncpg.Pool) -> None:
+        """Обновляет список подходящих тикеров.
 
-    def get_condition_id(self) -> str:
-        """Возвращает уникальный идентификатор условия.
-        
-        Returns:
-            str: Уникальный идентификатор условия.
+        Записывает пары (symbol, change_pct) в self.matched
         """
-        return self.condition_id
-
-    def add_subscriber(self, user_id: int) -> None:
-        """Регистрирует пользователя в списке подписчиков.
-
-        Пользователь добавляется только один раз; повторные вызовы с тем же
-        user_id игнорируются.
-
-        Args:
-            user_id (int): Telegram‑ID пользователя.
-        """
-        if user_id not in self.subscribers:
-            self.subscribers.append(user_id)
-
-    def remove_subscriber(self, user_id: int) -> None:
-        """Удаляет пользователя из списка подписчиков.
-
-        Если ``user_id`` отсутствует в списке, метод ничего не делает.
-
-        Args:
-            user_id (int): Telegram‑ID пользователя.
-        """
-        if user_id in self.subscribers:
-            self.subscribers.remove(user_id)
-
-    async def notify_subscribers(self, text: str) -> None:
-        """Отправляет текстовое уведомление каждому подписчику.
-
-        Args:
-            text (str): Готовое сообщение для рассылки.
-        """
-        for user_id in self.subscribers:
-            print(f"Alert for user {user_id}: {text}")
-            await bot.send_message(user_id, text)
-
-    async def check_and_notify(self, db_pool: asyncpg.Pool) -> None:
-        """Проверяет изменение цены и при необходимости отправляет оповещение.
-
-        Алгоритм:
-
-        1. Извлекает из БД последнюю цену (current_price) для каждого тикера.
-        2. Находит цену этого же тикера `interval` секунд назад (past_price).
-        3. Сравнивает относительное изменение с порогом percent.
-        4. Формирует и рассылает уведомление подписчикам, если условие
-           выполняется.
-
-        Args:
-            db_pool (asyncpg.Pool): Пул соединений с базой данных PostgreSQL,
-                содержащей таблицу price.
-        """
-        if not self.subscribers:
-            return
-
+        self.matched.clear()
         async with db_pool.acquire() as conn:
             rows = await conn.fetch(
                 """
@@ -107,16 +39,23 @@ class PriceListener:
                 """,
                 self.interval,
             )
-
         if not rows:
             return
-
         for row in rows:
             if self._trigger(row["current_price"], row["past_price"]):
                 change = ((row["current_price"] - row["past_price"]) / row["past_price"]) * 100
-                direction_str = "выросла" if change > 0 else "упала"
-                text = f"Цена {row['symbol']} {direction_str} на {abs(change):.2f}% за {self.interval} секунд."
-                await self.notify_subscribers(text)
+                self.matched.append((row["symbol"], change))
+
+
+    async def notify(self) -> None:
+        """Рассылает уведомления по self.matched и очищает список."""
+        if not self.subscribers or not self.matched:
+            return
+        for symbol, change in self.matched:
+            direction = "выросла" if change > 0 else "упала"
+            text = (f"Цена {symbol} {direction} на {abs(change):.2f}% "
+                    f"за {self.interval} сек.")
+            await self.notify_subscribers(text)
 
     def _trigger(self, current: float, past: float) -> bool:
         """

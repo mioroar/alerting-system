@@ -15,7 +15,7 @@ async def volume_amount_handler(message: Message) -> None:
     - interval: Интервал в секундах.
     - direction: Направление сравнения ('>' или '<').
 
-    Пример: /volume_amount 10000000 300 >
+    Пример: /volume_amount > 10000000 300
 
     Если VolumeAmountListener с такими параметрами уже существует, пользователь просто
     добавляется в список подписчиков.
@@ -24,15 +24,15 @@ async def volume_amount_handler(message: Message) -> None:
         message: Сообщение с командой.
     """
     try:
-        _, amount, interval, direction = message.text.split()
-        amount = float(amount)
+        _, direction, percent, interval = message.text.split()
+        percent = float(percent)
         interval = int(interval)
         user_id = message.from_user.id
 
         params = {
-            "amount": amount,
+            "direction": direction,
+            "percent": percent,
             "interval": interval,
-            "direction": direction
         }
 
         volume_amount_manager = await get_volume_amount_listener_manager()
@@ -43,10 +43,10 @@ async def volume_amount_handler(message: Message) -> None:
 
         direction_text = "превысил" if direction == ">" else "опустился ниже"
         await message.answer(
-            f"Вы подписаны на условие: объём {direction_text} {amount:,.0f} USD за {interval} сек."
+            f"Вы подписаны на условие: объём {direction_text} {percent:,.0f} USD за {interval} сек."
         )
     except Exception as e:
-        await message.answer(f"Ошибка: {e}\nПример: /volume_amount 10000000 300 >")
+        await message.answer(f"Ошибка: {e}\nПример: /volume_amount >10000000 300")
 
 
 @volume_router.message(Command("get_all_volume_amount_listeners"))
@@ -70,7 +70,7 @@ async def get_all_volume_amount_listeners_handler(message: Message) -> None:
         for listener in listeners:
             direction_text = "превысил" if listener.direction == ">" else "опустился ниже"
             await message.answer(
-                f"Условие: объём {direction_text} {listener.amount:,.0f} USD за {listener.interval} сек.\n"
+                f"Условие: объём {direction_text} {listener.percent:,.0f} USD за {listener.interval} сек.\n"
                 f"ID: {listener.get_condition_id()}"
             )
     else:

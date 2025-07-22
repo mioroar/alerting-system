@@ -1,66 +1,13 @@
 import asyncpg
-from typing import List
+from modules.listener import Listener
 
-from bot.settings import bot
-
-
-class VolumeChangeListener:
+class VolumeChangeListener(Listener):
     """Следит за относительным изменением суммы объёма за два соседних окна.
 
     Класс отслеживает изменения объёма торгов для различных торговых символов
     и уведомляет подписчиков при превышении заданного порога изменения.
-
-    Attributes:
-        percent (float): Порог изменения в процентах.
-        interval (int): Длина окна в секундах.
-        direction (str): Направление отслеживания ('>' для роста, '<' для падения).
-        subscribers (List[int]): Список ID пользователей-подписчиков.
     """
-
-    def __init__(
-        self, condition_id: str, percent: float, interval: int, direction: str
-    ) -> None:
-        """Инициализирует объект VolumeChangeListener.
-
-        Args:
-            condition_id (str): Уникальный идентификатор условия.
-            percent (float): Порог изменения в процентах.
-            interval (int): Длина окна в секундах.
-            direction (str): Направление отслеживания ('>' для роста, '<' для падения).
-        """
-        self._condition_id: str = condition_id
-        self.percent: float = percent
-        self.interval: int = interval
-        self.direction: str = direction
-        self.subscribers: List[int] = []
-
-    def get_condition_id(self) -> str:
-        """Возвращает уникальный идентификатор условия.
-
-        Returns:
-            str: Уникальный идентификатор условия.
-        """
-        return self._condition_id
-
-    def add_subscriber(self, user_id: int) -> None:
-        """Добавляет пользователя в список подписчиков.
-
-        Args:
-            user_id (int): ID пользователя для добавления в подписку.
-        """
-        if user_id not in self.subscribers:
-            self.subscribers.append(user_id)
-
-    def remove_subscriber(self, user_id: int) -> None:
-        """Удаляет пользователя из списка подписчиков.
-
-        Args:
-            user_id (int): ID пользователя для удаления из подписки.
-        """
-        if user_id in self.subscribers:
-            self.subscribers.remove(user_id)
-
-    async def check_and_notify(self, db_pool: asyncpg.Pool) -> None:
+    async def update_state(self, db_pool: asyncpg.Pool) -> None:
         """Проверяет условия изменения объёма и уведомляет подписчиков.
 
         Выполняет SQL-запрос для получения данных об объёмах торгов за два
@@ -70,9 +17,7 @@ class VolumeChangeListener:
         Args:
             db_pool (asyncpg.Pool): Пул соединений с базой данных PostgreSQL.
         """
-        if not self.subscribers:
-            return
-
+        self.matched.clear()
         async with db_pool.acquire() as conn:
             rows = await conn.fetch(
                 """
@@ -112,13 +57,16 @@ class VolumeChangeListener:
                 float(row["cur_vol"]), float(row["prev_vol"])
             )
             if self._trigger(change):
-                text = (
-                    f"Объём {row['symbol']} за последние {self.interval} с "
-                    f"{'вырос' if change > 0 else 'упал'} на {abs(change):.2f} %."
-                    f"\nТекущий объём: {row['cur_vol']}"
-                    f"\nПрошлый объём: {row['prev_vol']}"
-                )
-                await self._notify_subscribers(text)
+                self.matched.append((row["symbol"], change))
+
+    async def notify(self) -> None:
+        """Рассылает уведомления по self.matched"""
+        if not self.subscribers or not self.matched:
+            return
+        for symbol, change in self.matched:
+            direction = "вырос" if change > 0 else "упал"
+            text = (f"Объём {symbol} {direction} на {abs(change):.2f} % за {self.interval}с")
+            await self.notify_subscribers(text)
 
     def _trigger(self, change: float) -> bool:
         """Проверяет, выполняется ли условие срабатывания с учётом направления.
@@ -132,15 +80,6 @@ class VolumeChangeListener:
         if self.direction == ">":
             return change >= self.percent
         return change <= -self.percent
-
-    async def _notify_subscribers(self, text: str) -> None:
-        """Отправляет уведомление всем подписчикам.
-
-        Args:
-            text (str): Текст уведомления для отправки.
-        """
-        for user_id in self.subscribers:
-            await bot.send_message(user_id, text)
 
     @staticmethod
     def _relative_change(current: float, past: float) -> float:

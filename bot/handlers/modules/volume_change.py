@@ -15,7 +15,7 @@ async def volume_handler(message: Message) -> None:
     - interval: Интервал в секундах.
     - direction: Направление изменения ('>' или '<').
 
-    Пример: /volume 50 60 >
+    Пример: /volume > 50 60
 
     Если VolumeListener с такими параметрами уже существует, пользователь просто
     добавляется в список подписчиков.
@@ -24,15 +24,15 @@ async def volume_handler(message: Message) -> None:
         message: Сообщение с командой.
     """
     try:
-        _, percent, interval, direction = message.text.split()
+        _, direction, percent, interval = message.text.split()
         percent = float(percent)
         interval = int(interval)
         user_id = message.from_user.id
 
         params = {
+            "direction": direction,
             "percent": percent,
             "interval": interval,
-            "direction": direction
         }
 
         volume_listener_manager = await get_volume_change_listener_manager()
@@ -45,7 +45,7 @@ async def volume_handler(message: Message) -> None:
             f"Вы подписаны на условие: изменение объёма {direction} {percent}% за {interval} сек."
         )
     except Exception as e:
-        await message.answer(f"Ошибка: {e}\nПример: /volume 50 60 >")
+        await message.answer(f"Ошибка: {e}\nПример: /volume > 50 60")
 
 
 @volume_change_router.message(Command("get_all_volume_listeners"))
