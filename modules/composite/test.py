@@ -30,3 +30,6 @@ text = "funding < 0.01 60"
 tree = get_parser().parse(text)
 ast  = AlertTransformer().transform(tree)
 print(ast)
+
+# Для запуска юзай python -m modules.composite.test
+# Все проходит, на ласт выдает ошибку, так и должно быть, т.к там передается 2 аргумента, а ожидается 1
