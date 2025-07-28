@@ -1,0 +1,411 @@
+2025-07-28 19:12:01,108 - INFO - trading_app - price.py:24 - Starting price tracker
+2025-07-28 19:12:01,143 - INFO - trading_app - volume.py:8 - Starting volume tracker (WebSocket)
+2025-07-28 19:12:01,145 - INFO - trading_app - oi.py:36 - Starting OI tracker service
+2025-07-28 19:12:01,242 - INFO - trading_app - init_db.py:18 - TimescaleDB extension enabled successfully
+2025-07-28 19:12:01,243 - INFO - trading_app - init_db.py:18 - TimescaleDB extension enabled successfully
+2025-07-28 19:12:01,245 - INFO - trading_app - init_db.py:32 - Price table created successfully
+2025-07-28 19:12:01,246 - INFO - trading_app - init_db.py:32 - Price table created successfully
+2025-07-28 19:12:01,247 - INFO - trading_app - init_db.py:46 - Volume table created successfully
+2025-07-28 19:12:01,248 - INFO - trading_app - init_db.py:46 - Volume table created successfully
+2025-07-28 19:12:01,251 - INFO - trading_app - init_db.py:18 - TimescaleDB extension enabled successfully
+2025-07-28 19:12:01,252 - INFO - trading_app - init_db.py:32 - Price table created successfully
+2025-07-28 19:12:01,253 - INFO - trading_app - init_db.py:46 - Volume table created successfully
+2025-07-28 19:12:01,258 - INFO - trading_app - init_db.py:69 - Price hypertable created successfully
+2025-07-28 19:12:01,259 - INFO - trading_app - init_db.py:69 - Price hypertable created successfully
+2025-07-28 19:12:01,259 - INFO - trading_app - init_db.py:69 - Price hypertable created successfully
+2025-07-28 19:12:01,260 - INFO - trading_app - init_db.py:78 - Volume hypertable created successfully
+2025-07-28 19:12:01,260 - INFO - trading_app - init_db.py:78 - Volume hypertable created successfully
+2025-07-28 19:12:01,262 - INFO - trading_app - init_db.py:78 - Volume hypertable created successfully
+2025-07-28 19:12:01,262 - INFO - trading_app - init_db.py:86 - Open interest hypertable created successfully
+2025-07-28 19:12:01,263 - INFO - trading_app - init_db.py:86 - Open interest hypertable created successfully
+2025-07-28 19:12:01,264 - INFO - trading_app - init_db.py:86 - Open interest hypertable created successfully
+2025-07-28 19:12:01,266 - INFO - trading_app - init_db.py:95 - Price retention policy added successfully
+2025-07-28 19:12:01,267 - INFO - trading_app - init_db.py:95 - Price retention policy added successfully
+2025-07-28 19:12:01,268 - INFO - trading_app - init_db.py:95 - Price retention policy added successfully
+2025-07-28 19:12:01,268 - INFO - trading_app - init_db.py:104 - Volume retention policy added successfully
+2025-07-28 19:12:01,269 - INFO - trading_app - init_db.py:104 - Volume retention policy added successfully
+2025-07-28 19:12:01,270 - INFO - trading_app - init_db.py:104 - Volume retention policy added successfully
+2025-07-28 19:12:01,270 - INFO - trading_app - init_db.py:112 - Open interest retention policy added successfully
+2025-07-28 19:12:01,271 - INFO - trading_app - init_db.py:116 - Database initialization completed
+2025-07-28 19:12:01,272 - INFO - trading_app - init_db.py:112 - Open interest retention policy added successfully
+2025-07-28 19:12:01,273 - INFO - trading_app - init_db.py:116 - Database initialization completed
+2025-07-28 19:12:01,273 - INFO - trading_app - init_db.py:112 - Open interest retention policy added successfully
+2025-07-28 19:12:01,274 - INFO - trading_app - init_db.py:116 - Database initialization completed
+2025-07-28 19:12:01,557 - INFO - trading_app - price.py:10 - Starting price tracker loop
+2025-07-28 19:12:01,736 - INFO - trading_app - oi.py:20 - Starting OI tracker loop
+2025-07-28 19:12:02,920 - INFO - trading_app - price.py:14 - Collected 487 price info
+2025-07-28 19:12:14,634 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:12:21,048 - WARNING - trading_app - logic.py:52 - OI API error NMRUSDT: 
+2025-07-28 19:12:22,262 - WARNING - trading_app - logic.py:52 - OI API error VOXELUSDT: 
+2025-07-28 19:12:23,943 - INFO - trading_app - oi.py:24 - Collected 445 OI entries
+2025-07-28 19:12:34,320 - ERROR - trading_app - price.py:18 - Error collecting price info: 
+Traceback (most recent call last):
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpx\_transports\default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpcore\_async\connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpcore\_async\connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpcore\_async\connection.py", line 103, in handle_async_request
+    return await self._connection.handle_async_request(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpcore\_async\http11.py", line 136, in handle_async_request
+    raise exc
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpcore\_async\http11.py", line 106, in handle_async_request
+    ) = await self._receive_response_headers(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpcore\_async\http11.py", line 177, in _receive_response_headers
+    event = await self._receive_event(timeout=timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpcore\_async\http11.py", line 217, in _receive_event
+    data = await self._network_stream.read(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpcore\_backends\anyio.py", line 32, in read
+    with map_exceptions(exc_map):
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AzaZLO\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpcore\_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ReadTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "d:\CursorProject\alert_system\alerting-system\modules\price\price.py", line 13, in collect_price_info_loop
+    price_info = await fetch_price_info()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "d:\CursorProject\alert_system\alerting-system\modules\price\tracker\logic.py", line 43, in fetch_price_info
+    resp = await client.get(PRICE_API_URL)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpx\_client.py", line 1768, in get
+    return await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpx\_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpx\_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpx\_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpx\_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpx\_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpx\_transports\default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\AzaZLO\AppData\Local\Programs\Python\Python312\Lib\contextlib.py", line 158, in __exit__
+    self.gen.throw(value)
+  File "D:\CursorProject\alert_system\alerting-system\.venv\Lib\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ReadTimeout
+2025-07-28 19:12:47,614 - INFO - trading_app - price.py:14 - Collected 497 price info
+2025-07-28 19:12:58,673 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:13:10,143 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:13:21,083 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:13:32,468 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:13:41,582 - WARNING - trading_app - logic.py:52 - OI API error METISUSDT: 
+2025-07-28 19:13:41,643 - WARNING - trading_app - logic.py:52 - OI API error SWELLUSDT: 
+2025-07-28 19:13:42,043 - WARNING - trading_app - logic.py:52 - OI API error SPXUSDT: 
+2025-07-28 19:13:42,527 - WARNING - trading_app - logic.py:52 - OI API error BRUSDT: 
+2025-07-28 19:13:43,429 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:13:46,827 - WARNING - trading_app - logic.py:52 - OI API error BIOUSDT: 
+2025-07-28 19:13:46,829 - INFO - trading_app - oi.py:24 - Collected 442 OI entries
+2025-07-28 19:13:54,452 - INFO - trading_app - price.py:14 - Collected 490 price info
+2025-07-28 19:14:05,662 - INFO - trading_app - price.py:14 - Collected 493 price info
+2025-07-28 19:14:17,219 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:14:28,165 - INFO - trading_app - price.py:14 - Collected 493 price info
+2025-07-28 19:14:39,163 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:14:52,547 - INFO - trading_app - price.py:14 - Collected 497 price info
+2025-07-28 19:15:00,912 - WARNING - trading_app - logic.py:52 - OI API error CELRUSDT: 
+2025-07-28 19:15:03,714 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:15:04,214 - WARNING - trading_app - logic.py:52 - OI API error GRASSUSDT: 
+2025-07-28 19:15:05,241 - WARNING - trading_app - logic.py:52 - OI API error LAYERUSDT: 
+2025-07-28 19:15:05,574 - WARNING - trading_app - logic.py:52 - OI API error PROMPTUSDT: 
+2025-07-28 19:15:05,578 - INFO - trading_app - oi.py:24 - Collected 443 OI entries
+2025-07-28 19:15:14,799 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:15:27,078 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:15:38,142 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:15:49,007 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:16:00,002 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:16:12,117 - INFO - trading_app - price.py:14 - Collected 497 price info
+2025-07-28 19:16:19,688 - WARNING - trading_app - logic.py:52 - OI API error EGLDUSDT: 
+2025-07-28 19:16:23,663 - INFO - trading_app - price.py:14 - Collected 497 price info
+2025-07-28 19:16:24,989 - WARNING - trading_app - logic.py:52 - OI API error CROSSUSDT: 
+2025-07-28 19:16:31,510 - WARNING - trading_app - logic.py:52 - OI API error METISUSDT: 
+2025-07-28 19:16:31,512 - INFO - trading_app - oi.py:24 - Collected 444 OI entries
+2025-07-28 19:16:35,255 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:16:46,260 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:16:57,516 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:17:08,884 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:17:20,138 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:17:31,217 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:17:42,718 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:17:51,841 - WARNING - trading_app - logic.py:52 - OI API error PUMPBTCUSDT: 
+2025-07-28 19:17:51,844 - WARNING - trading_app - logic.py:52 - OI API error AINUSDT: 
+2025-07-28 19:17:53,425 - WARNING - trading_app - logic.py:52 - OI API error DFUSDT: 
+2025-07-28 19:17:53,428 - INFO - trading_app - oi.py:24 - Collected 444 OI entries
+2025-07-28 19:17:53,608 - INFO - trading_app - price.py:14 - Collected 493 price info
+2025-07-28 19:18:04,511 - INFO - trading_app - price.py:14 - Collected 489 price info
+2025-07-28 19:18:15,501 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:18:26,543 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:18:37,695 - INFO - trading_app - price.py:14 - Collected 497 price info
+2025-07-28 19:18:49,139 - INFO - trading_app - price.py:14 - Collected 487 price info
+2025-07-28 19:19:00,881 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:19:06,995 - WARNING - trading_app - logic.py:52 - OI API error COTIUSDT: 
+2025-07-28 19:19:11,829 - WARNING - trading_app - logic.py:52 - OI API error AVAUSDT: 
+2025-07-28 19:19:12,132 - WARNING - trading_app - logic.py:52 - OI API error DOLOUSDT: 
+2025-07-28 19:19:13,295 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:19:13,576 - WARNING - trading_app - logic.py:52 - OI API error AUSDT: 
+2025-07-28 19:19:13,578 - INFO - trading_app - oi.py:24 - Collected 443 OI entries
+2025-07-28 19:19:24,355 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:19:35,310 - INFO - trading_app - price.py:14 - Collected 490 price info
+2025-07-28 19:19:46,304 - INFO - trading_app - price.py:14 - Collected 487 price info
+2025-07-28 19:19:58,304 - INFO - trading_app - price.py:14 - Collected 487 price info
+2025-07-28 19:20:09,340 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:20:21,878 - INFO - trading_app - price.py:14 - Collected 497 price info
+2025-07-28 19:20:33,551 - INFO - trading_app - price.py:14 - Collected 497 price info
+2025-07-28 19:20:33,846 - INFO - trading_app - oi.py:24 - Collected 447 OI entries
+2025-07-28 19:20:48,948 - INFO - trading_app - price.py:14 - Collected 489 price info
+2025-07-28 19:21:00,355 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:21:11,584 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:21:22,479 - INFO - trading_app - price.py:14 - Collected 491 price info
+2025-07-28 19:21:33,498 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:21:44,520 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:21:54,872 - WARNING - trading_app - logic.py:52 - OI API error MYROUSDT: 
+2025-07-28 19:21:54,874 - INFO - trading_app - oi.py:24 - Collected 446 OI entries
+2025-07-28 19:21:55,433 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:22:07,098 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:22:17,935 - INFO - trading_app - price.py:14 - Collected 497 price info
+2025-07-28 19:22:29,050 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:22:40,091 - INFO - trading_app - price.py:14 - Collected 491 price info
+2025-07-28 19:22:51,226 - INFO - trading_app - price.py:14 - Collected 489 price info
+2025-07-28 19:23:03,024 - INFO - trading_app - price.py:14 - Collected 491 price info
+2025-07-28 19:23:12,456 - WARNING - trading_app - logic.py:52 - OI API error JOEUSDT: 
+2025-07-28 19:23:14,974 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:23:15,058 - INFO - trading_app - oi.py:24 - Collected 446 OI entries
+2025-07-28 19:23:26,106 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:23:37,122 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:23:47,978 - INFO - trading_app - price.py:14 - Collected 490 price info
+2025-07-28 19:23:58,798 - INFO - trading_app - price.py:14 - Collected 484 price info
+2025-07-28 19:24:12,968 - INFO - trading_app - price.py:14 - Collected 497 price info
+2025-07-28 19:24:20,869 - WARNING - trading_app - logic.py:52 - OI API error 1000BONKUSDT: 
+2025-07-28 19:24:25,108 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:24:28,942 - WARNING - trading_app - logic.py:52 - OI API error SFPUSDT: 
+2025-07-28 19:24:33,549 - WARNING - trading_app - logic.py:52 - OI API error ARCUSDT: 
+2025-07-28 19:24:36,017 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:24:36,594 - INFO - trading_app - oi.py:24 - Collected 444 OI entries
+2025-07-28 19:24:46,959 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:24:57,855 - INFO - trading_app - price.py:14 - Collected 483 price info
+2025-07-28 19:25:08,822 - INFO - trading_app - price.py:14 - Collected 493 price info
+2025-07-28 19:25:19,686 - INFO - trading_app - price.py:14 - Collected 490 price info
+2025-07-28 19:25:31,003 - INFO - trading_app - price.py:14 - Collected 493 price info
+2025-07-28 19:25:43,768 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:25:53,857 - WARNING - trading_app - logic.py:52 - OI API error BSWUSDT: 
+2025-07-28 19:25:54,732 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:25:54,837 - WARNING - trading_app - logic.py:52 - OI API error BANANAS31USDT: 
+2025-07-28 19:25:54,838 - WARNING - trading_app - logic.py:52 - OI API error SHELLUSDT: 
+2025-07-28 19:26:01,075 - INFO - trading_app - oi.py:24 - Collected 444 OI entries
+2025-07-28 19:26:05,593 - INFO - trading_app - price.py:14 - Collected 493 price info
+2025-07-28 19:26:16,535 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:26:27,469 - INFO - trading_app - price.py:14 - Collected 493 price info
+2025-07-28 19:26:39,001 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:26:50,243 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:27:01,338 - INFO - trading_app - price.py:14 - Collected 491 price info
+2025-07-28 19:27:12,215 - INFO - trading_app - price.py:14 - Collected 488 price info
+2025-07-28 19:27:13,476 - WARNING - trading_app - logic.py:52 - OI API error BAKEUSDT: 
+2025-07-28 19:27:14,901 - WARNING - trading_app - logic.py:52 - OI API error FXSUSDT: 
+2025-07-28 19:27:14,903 - WARNING - trading_app - logic.py:52 - OI API error QNTUSDT: 
+2025-07-28 19:27:14,925 - WARNING - trading_app - logic.py:52 - OI API error MAVUSDT: 
+2025-07-28 19:27:16,388 - WARNING - trading_app - logic.py:52 - OI API error 1000WHYUSDT: 
+2025-07-28 19:27:16,790 - WARNING - trading_app - logic.py:52 - OI API error SONICUSDT: 
+2025-07-28 19:27:17,387 - WARNING - trading_app - logic.py:52 - OI API error ICNTUSDT: 
+2025-07-28 19:27:17,388 - INFO - trading_app - oi.py:24 - Collected 440 OI entries
+2025-07-28 19:27:23,020 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:27:34,261 - INFO - trading_app - price.py:14 - Collected 491 price info
+2025-07-28 19:27:45,501 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:27:56,513 - INFO - trading_app - price.py:14 - Collected 487 price info
+2025-07-28 19:28:07,411 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:28:18,534 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:28:31,928 - WARNING - trading_app - logic.py:52 - OI API error MASKUSDT: 
+2025-07-28 19:28:31,931 - WARNING - trading_app - logic.py:52 - OI API error ICXUSDT: 
+2025-07-28 19:28:32,497 - INFO - trading_app - price.py:14 - Collected 490 price info
+2025-07-28 19:28:34,919 - WARNING - trading_app - logic.py:52 - OI API error PERPUSDT: 
+2025-07-28 19:28:35,022 - WARNING - trading_app - logic.py:52 - OI API error TAOUSDT: 
+2025-07-28 19:28:36,464 - WARNING - trading_app - logic.py:52 - OI API error CTKUSDT: 
+2025-07-28 19:28:36,653 - WARNING - trading_app - logic.py:52 - OI API error BDXNUSDT: 
+2025-07-28 19:28:36,655 - INFO - trading_app - oi.py:24 - Collected 441 OI entries
+2025-07-28 19:28:43,621 - INFO - trading_app - price.py:14 - Collected 484 price info
+2025-07-28 19:28:54,874 - INFO - trading_app - price.py:14 - Collected 484 price info
+2025-07-28 19:29:05,776 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:29:17,921 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:29:29,425 - INFO - trading_app - price.py:14 - Collected 479 price info
+2025-07-28 19:29:43,552 - INFO - trading_app - price.py:14 - Collected 486 price info
+2025-07-28 19:29:50,928 - WARNING - trading_app - logic.py:52 - OI API error 1000XECUSDT: 
+2025-07-28 19:29:54,970 - WARNING - trading_app - logic.py:52 - OI API error TNSRUSDT: 
+2025-07-28 19:29:55,749 - WARNING - trading_app - logic.py:52 - OI API error ORCAUSDT: 
+2025-07-28 19:29:56,363 - INFO - trading_app - price.py:14 - Collected 486 price info
+2025-07-28 19:29:56,522 - WARNING - trading_app - logic.py:52 - OI API error CVCUSDT: 
+2025-07-28 19:29:56,523 - INFO - trading_app - oi.py:24 - Collected 443 OI entries
+2025-07-28 19:30:07,285 - INFO - trading_app - price.py:14 - Collected 483 price info
+2025-07-28 19:30:18,563 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:30:30,402 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:30:41,549 - INFO - trading_app - price.py:14 - Collected 490 price info
+2025-07-28 19:30:53,860 - INFO - trading_app - price.py:14 - Collected 490 price info
+2025-07-28 19:31:05,820 - INFO - trading_app - price.py:14 - Collected 491 price info
+2025-07-28 19:31:09,800 - WARNING - trading_app - logic.py:52 - OI API error ALGOUSDT: 
+2025-07-28 19:31:11,779 - WARNING - trading_app - logic.py:52 - OI API error HIGHUSDT: 
+2025-07-28 19:31:14,588 - WARNING - trading_app - logic.py:52 - OI API error ALCHUSDT: 
+2025-07-28 19:31:14,591 - INFO - trading_app - oi.py:24 - Collected 444 OI entries
+2025-07-28 19:31:17,129 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:31:28,344 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:31:39,427 - INFO - trading_app - price.py:14 - Collected 497 price info
+2025-07-28 19:31:50,599 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:32:01,646 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:32:13,000 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:32:24,188 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:32:28,550 - WARNING - trading_app - logic.py:52 - OI API error ADAUSDT: 
+2025-07-28 19:32:34,199 - WARNING - trading_app - logic.py:52 - OI API error MILKUSDT: 
+2025-07-28 19:32:35,178 - INFO - trading_app - oi.py:24 - Collected 445 OI entries
+2025-07-28 19:32:35,449 - INFO - trading_app - price.py:14 - Collected 493 price info
+2025-07-28 19:32:46,594 - INFO - trading_app - price.py:14 - Collected 489 price info
+2025-07-28 19:32:57,724 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:33:08,796 - INFO - trading_app - price.py:14 - Collected 493 price info
+2025-07-28 19:33:20,511 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:33:31,594 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:33:44,226 - INFO - trading_app - price.py:14 - Collected 497 price info
+2025-07-28 19:33:50,083 - WARNING - trading_app - logic.py:52 - OI API error HOTUSDT: 
+2025-07-28 19:33:52,783 - WARNING - trading_app - logic.py:52 - OI API error INJUSDT: 
+2025-07-28 19:33:55,426 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:33:55,439 - WARNING - trading_app - logic.py:52 - OI API error GMTUSDT: 
+2025-07-28 19:33:55,442 - INFO - trading_app - oi.py:24 - Collected 444 OI entries
+2025-07-28 19:34:06,413 - INFO - trading_app - price.py:14 - Collected 491 price info
+2025-07-28 19:34:17,504 - INFO - trading_app - price.py:14 - Collected 483 price info
+2025-07-28 19:34:28,884 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:34:39,938 - INFO - trading_app - price.py:14 - Collected 489 price info
+2025-07-28 19:34:50,992 - INFO - trading_app - price.py:14 - Collected 489 price info
+2025-07-28 19:35:02,558 - INFO - trading_app - price.py:14 - Collected 485 price info
+2025-07-28 19:35:13,167 - WARNING - trading_app - logic.py:52 - OI API error ARCUSDT: 
+2025-07-28 19:35:13,170 - INFO - trading_app - oi.py:24 - Collected 446 OI entries
+2025-07-28 19:35:13,496 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:35:24,381 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:35:35,815 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:35:46,710 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:35:57,607 - INFO - trading_app - price.py:14 - Collected 490 price info
+2025-07-28 19:36:08,561 - INFO - trading_app - price.py:14 - Collected 489 price info
+2025-07-28 19:36:19,849 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:36:27,603 - WARNING - trading_app - logic.py:52 - OI API error HFTUSDT: 
+2025-07-28 19:36:29,841 - WARNING - trading_app - logic.py:52 - OI API error VANAUSDT: 
+2025-07-28 19:36:30,265 - WARNING - trading_app - logic.py:52 - OI API error FHEUSDT: 
+2025-07-28 19:36:30,837 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:36:39,026 - WARNING - trading_app - logic.py:52 - OI API error TRUMPUSDT: 
+2025-07-28 19:36:39,027 - INFO - trading_app - oi.py:24 - Collected 443 OI entries
+2025-07-28 19:36:42,064 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:36:52,868 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:37:03,756 - INFO - trading_app - price.py:14 - Collected 491 price info
+2025-07-28 19:37:14,651 - INFO - trading_app - price.py:14 - Collected 485 price info
+2025-07-28 19:37:25,674 - INFO - trading_app - price.py:14 - Collected 490 price info
+2025-07-28 19:37:36,785 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:37:49,024 - INFO - trading_app - price.py:14 - Collected 495 price info
+2025-07-28 19:37:55,535 - WARNING - trading_app - logic.py:52 - OI API error FXSUSDT: 
+2025-07-28 19:37:57,323 - WARNING - trading_app - logic.py:52 - OI API error SWELLUSDT: 
+2025-07-28 19:37:57,330 - WARNING - trading_app - logic.py:52 - OI API error FIDAUSDT: 
+2025-07-28 19:37:58,309 - WARNING - trading_app - logic.py:52 - OI API error COOKIEUSDT: 
+2025-07-28 19:37:59,894 - WARNING - trading_app - logic.py:52 - OI API error HYPERUSDT: 
+2025-07-28 19:38:00,304 - INFO - trading_app - price.py:14 - Collected 487 price info
+2025-07-28 19:38:06,151 - INFO - trading_app - oi.py:24 - Collected 442 OI entries
+2025-07-28 19:38:11,442 - INFO - trading_app - price.py:14 - Collected 489 price info
+2025-07-28 19:38:22,346 - INFO - trading_app - price.py:14 - Collected 488 price info
+2025-07-28 19:38:33,674 - INFO - trading_app - price.py:14 - Collected 489 price info
+2025-07-28 19:38:44,774 - INFO - trading_app - price.py:14 - Collected 490 price info
+2025-07-28 19:38:57,853 - INFO - trading_app - price.py:14 - Collected 491 price info
+2025-07-28 19:39:11,603 - INFO - trading_app - price.py:14 - Collected 488 price info
+2025-07-28 19:39:19,882 - WARNING - trading_app - logic.py:52 - OI API error ALPHAUSDT: 
+2025-07-28 19:39:20,235 - WARNING - trading_app - logic.py:52 - OI API error MTLUSDT: 
+2025-07-28 19:39:22,926 - INFO - trading_app - price.py:14 - Collected 474 price info
+2025-07-28 19:39:23,421 - WARNING - trading_app - logic.py:52 - OI API error DOGSUSDT: 
+2025-07-28 19:39:23,749 - WARNING - trading_app - logic.py:52 - OI API error DEGENUSDT: 
+2025-07-28 19:39:23,768 - WARNING - trading_app - logic.py:52 - OI API error THEUSDT: 
+2025-07-28 19:39:25,571 - WARNING - trading_app - logic.py:52 - OI API error BULLAUSDT: 
+2025-07-28 19:39:25,574 - INFO - trading_app - oi.py:24 - Collected 441 OI entries
+2025-07-28 19:39:34,277 - INFO - trading_app - price.py:14 - Collected 483 price info
+2025-07-28 19:39:45,087 - INFO - trading_app - price.py:14 - Collected 482 price info
+2025-07-28 19:39:55,914 - INFO - trading_app - price.py:14 - Collected 478 price info
+2025-07-28 19:40:07,133 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:40:17,969 - INFO - trading_app - price.py:14 - Collected 496 price info
+2025-07-28 19:40:30,585 - INFO - trading_app - price.py:14 - Collected 490 price info
+2025-07-28 19:40:41,566 - INFO - trading_app - price.py:14 - Collected 486 price info
+2025-07-28 19:40:42,016 - INFO - trading_app - oi.py:24 - Collected 447 OI entries
+2025-07-28 19:40:52,359 - INFO - trading_app - price.py:14 - Collected 479 price info
+2025-07-28 19:41:03,187 - INFO - trading_app - price.py:14 - Collected 475 price info
+2025-07-28 19:41:14,424 - INFO - trading_app - price.py:14 - Collected 491 price info
+2025-07-28 19:41:25,492 - INFO - trading_app - price.py:14 - Collected 494 price info
+2025-07-28 19:41:36,329 - INFO - trading_app - price.py:14 - Collected 490 price info
+2025-07-28 19:41:47,771 - INFO - trading_app - price.py:14 - Collected 489 price info
+2025-07-28 19:41:56,551 - INFO - trading_app - oi.py:24 - Collected 447 OI entries
+2025-07-28 19:41:58,885 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:42:09,743 - INFO - trading_app - price.py:14 - Collected 484 price info
+2025-07-28 19:42:20,943 - INFO - trading_app - price.py:14 - Collected 486 price info
+2025-07-28 19:42:31,983 - INFO - trading_app - price.py:14 - Collected 486 price info
+2025-07-28 19:42:42,814 - INFO - trading_app - price.py:14 - Collected 486 price info
+2025-07-28 19:42:53,637 - INFO - trading_app - price.py:14 - Collected 477 price info
+2025-07-28 19:43:04,477 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:43:09,081 - WARNING - trading_app - logic.py:52 - OI API error ONEUSDT: 
+2025-07-28 19:43:09,087 - WARNING - trading_app - logic.py:52 - OI API error KAVAUSDT: 
+2025-07-28 19:43:10,498 - WARNING - trading_app - logic.py:52 - OI API error OXTUSDT: 
+2025-07-28 19:43:10,499 - WARNING - trading_app - logic.py:52 - OI API error INJUSDT: 
+2025-07-28 19:43:10,810 - WARNING - trading_app - logic.py:52 - OI API error NFPUSDT: 
+2025-07-28 19:43:12,344 - WARNING - trading_app - logic.py:52 - OI API error SUSDT: 
+2025-07-28 19:43:12,936 - WARNING - trading_app - logic.py:52 - OI API error AWEUSDT: 
+2025-07-28 19:43:13,434 - WARNING - trading_app - logic.py:52 - OI API error REDUSDT: 
+2025-07-28 19:43:13,435 - INFO - trading_app - oi.py:24 - Collected 439 OI entries
+2025-07-28 19:43:15,343 - INFO - trading_app - price.py:14 - Collected 492 price info
+2025-07-28 19:43:26,633 - INFO - trading_app - price.py:14 - Collected 479 price info
+2025-07-28 19:43:37,644 - INFO - trading_app - price.py:14 - Collected 479 price info
+2025-07-28 19:43:48,730 - INFO - trading_app - price.py:14 - Collected 476 price info
+2025-07-28 19:44:00,737 - INFO - trading_app - price.py:24 - Starting price tracker
+2025-07-28 19:44:00,771 - INFO - trading_app - volume.py:8 - Starting volume tracker (WebSocket)
+2025-07-28 19:44:00,773 - INFO - trading_app - oi.py:36 - Starting OI tracker service
+2025-07-28 19:44:00,863 - INFO - trading_app - init_db.py:18 - TimescaleDB extension enabled successfully
+2025-07-28 19:44:00,864 - INFO - trading_app - init_db.py:18 - TimescaleDB extension enabled successfully
+2025-07-28 19:44:00,865 - INFO - trading_app - init_db.py:32 - Price table created successfully
+2025-07-28 19:44:00,866 - INFO - trading_app - init_db.py:32 - Price table created successfully
+2025-07-28 19:44:00,866 - INFO - trading_app - init_db.py:46 - Volume table created successfully
+2025-07-28 19:44:00,867 - INFO - trading_app - init_db.py:46 - Volume table created successfully
+2025-07-28 19:44:00,871 - INFO - trading_app - init_db.py:69 - Price hypertable created successfully
+2025-07-28 19:44:00,872 - INFO - trading_app - init_db.py:69 - Price hypertable created successfully
+2025-07-28 19:44:00,873 - INFO - trading_app - init_db.py:78 - Volume hypertable created successfully
+2025-07-28 19:44:00,874 - INFO - trading_app - init_db.py:78 - Volume hypertable created successfully
+2025-07-28 19:44:00,875 - INFO - trading_app - init_db.py:86 - Open interest hypertable created successfully
+2025-07-28 19:44:00,875 - INFO - trading_app - init_db.py:86 - Open interest hypertable created successfully
+2025-07-28 19:44:00,877 - INFO - trading_app - init_db.py:95 - Price retention policy added successfully
+2025-07-28 19:44:00,878 - INFO - trading_app - init_db.py:104 - Volume retention policy added successfully
+2025-07-28 19:44:00,879 - INFO - trading_app - init_db.py:18 - TimescaleDB extension enabled successfully
+2025-07-28 19:44:00,880 - INFO - trading_app - init_db.py:95 - Price retention policy added successfully
+2025-07-28 19:44:00,880 - INFO - trading_app - init_db.py:112 - Open interest retention policy added successfully
+2025-07-28 19:44:00,881 - INFO - trading_app - init_db.py:116 - Database initialization completed
+2025-07-28 19:44:00,881 - INFO - trading_app - init_db.py:32 - Price table created successfully
+2025-07-28 19:44:00,882 - INFO - trading_app - init_db.py:104 - Volume retention policy added successfully
+2025-07-28 19:44:00,883 - INFO - trading_app - init_db.py:46 - Volume table created successfully
+2025-07-28 19:44:00,883 - INFO - trading_app - init_db.py:112 - Open interest retention policy added successfully
+2025-07-28 19:44:00,884 - INFO - trading_app - init_db.py:116 - Database initialization completed
+2025-07-28 19:44:01,110 - INFO - trading_app - price.py:10 - Starting price tracker loop
+2025-07-28 19:44:01,286 - INFO - trading_app - init_db.py:69 - Price hypertable created successfully
+2025-07-28 19:44:01,289 - INFO - trading_app - init_db.py:78 - Volume hypertable created successfully
+2025-07-28 19:44:01,291 - INFO - trading_app - init_db.py:86 - Open interest hypertable created successfully
+2025-07-28 19:44:01,294 - INFO - trading_app - init_db.py:95 - Price retention policy added successfully
+2025-07-28 19:44:01,296 - INFO - trading_app - init_db.py:104 - Volume retention policy added successfully
+2025-07-28 19:44:01,297 - INFO - trading_app - init_db.py:112 - Open interest retention policy added successfully
+2025-07-28 19:44:01,297 - INFO - trading_app - init_db.py:116 - Database initialization completed
+2025-07-28 19:44:01,301 - INFO - trading_app - oi.py:20 - Starting OI tracker loop
+2025-07-28 19:44:03,868 - INFO - trading_app - price.py:14 - Collected 491 price info
+2025-07-28 19:44:09,542 - INFO - trading_app - oi.py:24 - Collected 447 OI entries

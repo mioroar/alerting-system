@@ -82,5 +82,5 @@ async def unsubscribe_from_oi_listener_handler(message: Message) -> None:
 async def unsubscribe_all_oi_handler(message: Message) -> None:
     """Мгновенно снимает все подписки пользователя на OI."""
     oi_manager = await get_oi_listener_manager()
-    oi_manager.unsubscribe_user_from_all_listeners(message.from_user.id)
+    oi_manager.unsubscribe_user_from_all(message.from_user.id)
     await message.answer("Вы отписаны от всех условий OI.")

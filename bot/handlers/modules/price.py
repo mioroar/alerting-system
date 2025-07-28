@@ -103,5 +103,5 @@ async def unsubscribe_all_price_handler(message: Message) -> None:
         message: Сообщение Telegram с текстом команды.
     """
     price_listener_manager = await get_price_listener_manager()
-    price_listener_manager.unsubscribe_user_from_all_listeners(message.from_user.id)
+    price_listener_manager.unsubscribe_user_from_all(message.from_user.id)
     await message.answer("Вы отписаны от всех подписок на изменения цены.") 

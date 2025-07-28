@@ -104,5 +104,5 @@ async def unsubscribe_all_volume_handler(message: Message) -> None:
         message: Сообщение Telegram с текстом команды.
     """
     volume_listener_manager = await get_volume_change_listener_manager()
-    volume_listener_manager.unsubscribe_user_from_all_listeners(message.from_user.id)
+    volume_listener_manager.unsubscribe_user_from_all(message.from_user.id)
     await message.answer("Вы отписаны от всех подписок на изменения объёма.") 
