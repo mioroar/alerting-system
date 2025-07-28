@@ -5,15 +5,18 @@ from aiogram.enums import ParseMode
 from .modules.price import price_router
 from .modules.volume import volume_router
 from .modules.volume_change import volume_change_router
+from .modules.oi import oi_router
 from modules.price.listener.manager import get_price_listener_manager
 from modules.volume.listener.manager import get_volume_amount_listener_manager
 from modules.volume_change.listener.manager import get_volume_change_listener_manager
+from modules.oi.listener.manager import get_oi_listener_manager
 
 another_router = Router()
 
 another_router.include_router(price_router)
 another_router.include_router(volume_router) 
 another_router.include_router(volume_change_router)
+another_router.include_router(oi_router)
 
 
 @another_router.message(Command("get_all_listeners"))
@@ -30,16 +33,17 @@ async def get_all_listeners_handler(message: Message) -> None:
     """
     user_id = message.from_user.id
     
-    # Получаем все листенеры пользователя
+
     price_manager = await get_price_listener_manager()
     volume_amount_manager = await get_volume_amount_listener_manager()
     volume_change_manager = await get_volume_change_listener_manager()
-    
+    oi_manager = await get_oi_listener_manager()
+
     price_listeners = price_manager.get_all_user_listeners(user_id)
     volume_amount_listeners = volume_amount_manager.get_all_user_listeners(user_id)
     volume_change_listeners = volume_change_manager.get_all_user_listeners(user_id)
-    
-    # Формируем ответ
+    oi_listeners = oi_manager.get_all_user_listeners(user_id)
+
     response_parts = []
     
     if price_listeners:
@@ -58,7 +62,13 @@ async def get_all_listeners_handler(message: Message) -> None:
                 f"• Объём {direction_text} {listener.amount:,.0f} USD за {listener.interval} сек.\n"
                 f"  ID: <code>{listener.get_condition_id()}</code>"
             )
-    
+    if oi_listeners:
+        response_parts.append("<b>📈 Подписки на изменения OI:</b>")
+        for listener in oi_listeners:
+            response_parts.append(
+                f"• Изменение OI {listener.direction} {listener.percent}% за {listener.interval} сек.\n"
+                f"  ID: <code>{listener.get_condition_id()}</code>"
+            )
     if volume_change_listeners:
         response_parts.append("<b>📈 Подписки на изменения объёма:</b>")
         for listener in volume_change_listeners:

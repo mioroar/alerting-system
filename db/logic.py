@@ -6,6 +6,7 @@ import asyncpg
 from db.config import DATABASE_SETTINGS, POOL_SETTINGS
 from modules.price.config import PriceInfo
 from modules.volume_change.config import VolumeInfo
+from modules.oi.config import OIInfo
 
 _POOL: asyncpg.Pool | None = None
 
@@ -23,6 +24,20 @@ ON CONFLICT (ts, symbol) DO UPDATE
     SET volume = EXCLUDED.volume;
 """
 
+_SQL_OI = """
+INSERT INTO open_interest (ts, symbol, open_interest)
+VALUES ($1, $2, $3)
+ON CONFLICT (ts, symbol) DO UPDATE
+    SET open_interest = EXCLUDED.open_interest;
+"""
+
+async def _executemany(sql: str, rows: Sequence[tuple]) -> None:
+    """Общий помощник: batch‑вставка с reuse соединения."""
+    if not rows:
+        return
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.executemany(sql, rows)
 
 async def get_pool() -> asyncpg.Pool:
     """Получить пул соединений с TimescaleDB.
@@ -56,10 +71,7 @@ async def upsert_prices(prices: Sequence[PriceInfo]) -> None:
         )
         for p in prices
     ]
-
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        await conn.executemany(_SQL_PRICE, rows)
+    await _executemany(_SQL_PRICE, rows)
 
 async def upsert_volumes(volumes: Sequence[VolumeInfo]) -> None:
     """Batch‑вставка/апдейт объёмов.
@@ -78,10 +90,23 @@ async def upsert_volumes(volumes: Sequence[VolumeInfo]) -> None:
         )
         for v in volumes
     ]
+    await _executemany(_SQL_VOLUME, rows)
 
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        await conn.executemany(_SQL_VOLUME, rows)
+async def upsert_open_interest(oi_data: Sequence[OIInfo]) -> None:
+    """Batch upsert открытого интереса.
+
+    Args:
+        oi_data: Список словарей ``{"symbol": str, "oi": str, "time": int}``.
+    """
+    rows = [
+        (
+            dt.datetime.fromtimestamp(o["time"] / 1000, tz=dt.timezone.utc),
+            o["symbol"],
+            o["oi"],
+        )
+        for o in oi_data
+    ]
+    await _executemany(_SQL_OI, rows)
 
 def _unix_ms_to_iso(ms: int) -> str:
     """Преобразует UNIX‑мс в ISO‑8601 строку ``YYYY‑MM‑DDTHH:MM:SS.mmmZ``.

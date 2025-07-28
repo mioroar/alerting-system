@@ -47,6 +47,20 @@ async def init_db() -> None:
         except Exception as e:
             logger.warning(f"Failed to create volume table: {e}")
 
+        try:
+            await conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS open_interest (
+            ts            TIMESTAMPTZ    NOT NULL,
+            symbol        TEXT           NOT NULL,
+            open_interest NUMERIC(24, 8) NOT NULL,
+            CONSTRAINT open_interest_pk PRIMARY KEY (ts, symbol)
+        );
+        """
+        )
+        except Exception as e:
+            logger.warning(f"Failed to create open_interest table: {e}")
+
         # Создание hypertable для price
         try:
             await conn.execute(
@@ -65,6 +79,14 @@ async def init_db() -> None:
         except Exception as e:
             logger.warning(f"Failed to create volume hypertable: {e}")
 
+        try:
+            await conn.execute(
+                "SELECT create_hypertable('open_interest', by_range('ts'), if_not_exists => TRUE);"
+            )
+            logger.info("Open interest hypertable created successfully")
+        except Exception as e:
+            logger.warning(f"Failed to create open interest hypertable: {e}")
+
         # Добавление retention policy для price
         try:
             await conn.execute(
@@ -82,6 +104,14 @@ async def init_db() -> None:
             logger.info("Volume retention policy added successfully")
         except Exception as e:
             logger.warning(f"Failed to add volume retention policy: {e}")
+
+        try:
+            await conn.execute(
+                "SELECT add_retention_policy('open_interest', INTERVAL '24 hours', if_not_exists => TRUE);"
+            )
+            logger.info("Open interest retention policy added successfully")
+        except Exception as e:
+            logger.warning(f"Failed to add open interest retention policy: {e}")
 
         logger.info("Database initialization completed")
 
