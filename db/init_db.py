@@ -47,6 +47,7 @@ async def init_db() -> None:
         except Exception as e:
             logger.warning(f"Failed to create volume table: {e}")
 
+        # Создание таблицы open_interest
         try:
             await conn.execute(
         """
@@ -60,6 +61,21 @@ async def init_db() -> None:
         )
         except Exception as e:
             logger.warning(f"Failed to create open_interest table: {e}")
+
+        # Создание таблицы funding_rate
+        try:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS funding_rate (
+                    ts               TIMESTAMPTZ    NOT NULL,
+                    symbol           TEXT           NOT NULL,
+                    funding_rate     NUMERIC(16,8) NOT NULL,
+                    next_funding_ts  TIMESTAMPTZ    NOT NULL,
+                    CONSTRAINT funding_rate_pk PRIMARY KEY (ts, symbol)
+                );
+            """)
+            logger.info("Funding_rate table created successfully")
+        except Exception as e:
+            logger.warning(f"Failed to create funding_rate table: {e}")
 
         # Создание hypertable для price
         try:
@@ -87,6 +103,15 @@ async def init_db() -> None:
         except Exception as e:
             logger.warning(f"Failed to create open interest hypertable: {e}")
 
+        try:
+            await conn.execute(
+                "SELECT create_hypertable('funding_rate', by_range('ts'), if_not_exists => TRUE);"
+            )
+            logger.info("Funding_rate hypertable created successfully")
+        except Exception as e:
+            logger.warning(f"Failed to create funding_rate hypertable: {e}")
+
+
         # Добавление retention policy для price
         try:
             await conn.execute(
@@ -113,7 +138,14 @@ async def init_db() -> None:
         except Exception as e:
             logger.warning(f"Failed to add open interest retention policy: {e}")
 
-        logger.info("Database initialization completed")
+        try:
+            await conn.execute(
+                f"SELECT add_retention_policy('funding_rate', INTERVAL '{48} hours', if_not_exists => TRUE);"
+            )
+            logger.info("Funding_rate retention policy added successfully")
+        except Exception as e:
+            logger.warning(f"Failed to add funding_rate retention policy: {e}")
 
+        logger.info("Database initialization completed")
     finally:
         await conn.close()

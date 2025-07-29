@@ -48,6 +48,13 @@ async def start_handler(message: Message) -> None:
 • <code>/get_all_oi_listeners</code> — показать все подписки на изменения OI  
 • <code>/unsubscribe_all_oi</code> — отписаться от всех подписок на OI
 
+<b>📅 Отслеживание funding‑ставки:</b>
+• <code>/funding [&gt; или &lt;] [процент] [сек_до_расчёта]</code>
+  Пример: <code>/funding &gt; 2 600</code>
+• <code>/get_all_funding_listeners</code>
+• <code>/unsubscribe_from_funding_listener [ID]</code>
+• <code>/unsubscribe_all_funding</code>
+
 <b>📋 Общие команды:</b>
 • <code>/get_all_listeners</code> — показать все активные подписки
 

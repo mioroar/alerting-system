@@ -31,6 +31,14 @@ ON CONFLICT (ts, symbol) DO UPDATE
     SET open_interest = EXCLUDED.open_interest;
 """
 
+_SQL_FUNDING = """
+INSERT INTO funding_rate (ts, symbol, funding_rate, next_funding_ts)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (ts, symbol) DO UPDATE
+    SET funding_rate    = EXCLUDED.funding_rate,
+        next_funding_ts = EXCLUDED.next_funding_ts;
+"""
+
 async def _executemany(sql: str, rows: Sequence[tuple]) -> None:
     """Общий помощник: batch‑вставка с reuse соединения."""
     if not rows:
@@ -107,6 +115,18 @@ async def upsert_open_interest(oi_data: Sequence[OIInfo]) -> None:
         for o in oi_data
     ]
     await _executemany(_SQL_OI, rows)
+
+async def upsert_funding_rates(rows: Sequence[tuple]) -> None:
+    """
+    Batch‑upsert funding‑ставок.
+
+    Args:
+        rows: Список кортежей
+              (ts: datetime, symbol: str, rate: str, next_ts: datetime).
+    """
+    if not rows:
+        return
+    await _executemany(_SQL_FUNDING, rows)
 
 def _unix_ms_to_iso(ms: int) -> str:
     """Преобразует UNIX‑мс в ISO‑8601 строку ``YYYY‑MM‑DDTHH:MM:SS.mmmZ``.

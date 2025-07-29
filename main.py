@@ -7,9 +7,24 @@ from bot.bot import main as bot_main
 from modules.price.price import main as price_main
 from modules.volume_change.volume import main as volume_change_main
 from modules.oi.oi import main as oi_main
+from modules.funding.funding import main as funding_main
 
-async def main():
-    await asyncio.gather(bot_main(), price_main(), volume_change_main(), oi_main())
+async def main() -> None:
+    """Запускает все основные сервисы системы алертинга одновременно.
+    
+    Запускает следующие сервисы параллельно:
+    - Telegram бот для обработки команд пользователей
+    - Трекер цен криптовалют
+    - Трекер изменений объема торгов
+    - Трекер открытого интереса (OI)
+    - Трекер ставок финансирования
+    
+    Все сервисы работают асинхронно и независимо друг от друга.
+    
+    Returns:
+        None
+    """
+    await asyncio.gather(bot_main(), price_main(), volume_change_main(), oi_main(), funding_main())
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -7,8 +7,25 @@ BASE_DIR = Path(__file__).resolve().parent
 LOG_FILE = BASE_DIR / "debug.log"
 
 class UnbufferedFileHandler(logging.FileHandler):
-    """FileHandler без буферизации: каждый emit сразу пишется на диск."""
+    """FileHandler без буферизации: каждый emit сразу пишется на диск.
+    
+    Этот класс наследует от logging.FileHandler и переопределяет метод emit
+    для обеспечения немедленной записи логов на диск без буферизации.
+    Это полезно для отладки и мониторинга в реальном времени.
+    """
+    
     def emit(self, record: logging.LogRecord) -> None:
+        """Записывает лог-запись на диск немедленно.
+        
+        Переопределяет стандартный метод emit для принудительной записи
+        каждого лог-сообщения на диск без буферизации.
+        
+        Args:
+            record: Лог-запись для записи в файл.
+            
+        Returns:
+            None
+        """
         super().emit(record)
         self.flush()
         os.fsync(self.stream.fileno())
