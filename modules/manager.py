@@ -36,8 +36,25 @@ class BaseListenerManager(Generic[WhatListener]):
         key = (params["direction"], params["percent"], params["interval"])
         return str(hash(key))
 
-    async def add_listener(self, params: dict, user_id: int) -> WhatListener:
-        """Создаёт/возвращает слушатель и подписывает пользователя."""
+    async def add_listener(
+            self,
+            params: dict,
+            user_id: int | None = None,
+    ) -> WhatListener:
+        """Возвращает (либо создаёт) слушатель с заданными параметрами.
+
+        Если `user_id` указан, добавляет его в подписчики слушателя.
+        При `user_id is None` подписка пропускается – это нужно
+        композитным алертам, где уведомления идут через общий слой.
+
+        Args:
+            params: Словарь параметров, специфичный для модуля.
+                Обязательные ключи: "direction", "percent", "interval".
+            user_id: Telegram ID подписчика или None.
+
+        Returns:
+            WhatListener: Готовый объект‑слушатель (существующий или новый).
+        """
         cid = self.get_condition_id(params)
 
         if cid not in self._listeners:
@@ -54,7 +71,10 @@ class BaseListenerManager(Generic[WhatListener]):
                 self._run_listener_periodically(listener, db_pool)
             )
 
-        self._listeners[cid].add_subscriber(user_id)
+        # подписываем только реального пользователя
+        if user_id is not None:
+            self._listeners[cid].add_subscriber(user_id)
+
         return self._listeners[cid]
 
     async def remove_subscriber(self, condition_id: str, user_id: int) -> None:

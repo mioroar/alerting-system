@@ -7,6 +7,10 @@ class VolumeChangeListener(Listener):
     Класс отслеживает изменения объёма торгов для различных торговых символов
     и уведомляет подписчиков при превышении заданного порога изменения.
     """
+    @property
+    def period_sec(self) -> int:      # ← новое
+        return self.interval
+
     async def update_state(self, db_pool: asyncpg.Pool) -> None:
         """Проверяет условия изменения объёма и уведомляет подписчиков.
 

@@ -5,6 +5,10 @@ class PriceListener(Listener):
     """
     Лисенер изменения цены
     """
+    @property
+    def period_sec(self) -> int:
+        return self.interval
+
     async def update_state(self, db_pool: asyncpg.Pool) -> None:
         """Обновляет список подходящих тикеров.
 

@@ -54,6 +54,10 @@ class FundingListener(Listener):
         self.time_threshold_sec = time_threshold_sec
         self.matched: list[tuple[str, float, int]] = []
 
+    @property
+    def period_sec(self) -> int:
+        return self.interval
+
     async def update_state(self, db_pool: asyncpg.Pool) -> None:
         """Заполняет self.matched свежими срабатываниями.
 

@@ -11,6 +11,7 @@ from .modules.volume import volume_router
 from .modules.volume_change import volume_change_router
 from .modules.oi import oi_router
 from .modules.funding import funding_router
+from .modules.composite import alert_router
 
 from modules.price.listener.manager import get_price_listener_manager
 from modules.volume.listener.manager import get_volume_amount_listener_manager
@@ -25,7 +26,7 @@ another_router.include_router(volume_router)
 another_router.include_router(volume_change_router)
 another_router.include_router(oi_router)
 another_router.include_router(funding_router)
-
+another_router.include_router(alert_router)
 
 def _esc(val: object) -> str:
     """Надёжно экранирует любую переменную для HTML.

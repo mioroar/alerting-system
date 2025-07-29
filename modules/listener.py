@@ -22,6 +22,14 @@ class Listener:
         self.matched: list[tuple[str, float]] = []
         self.subscribers: List[int] = []
 
+    @property
+    def period_sec(self) -> int:
+        """Интервал между обновлениями состояния этого слушателя.
+
+        Должен быть переопределён наследником.
+        """
+        raise NotImplementedError
+
     def get_condition_id(self) -> str:
         """Возвращает уникальный идентификатор условия.
         
@@ -62,4 +70,8 @@ class Listener:
         for user_id in self.subscribers:
             print(f"Alert for user {user_id}: {text}")
             await bot.send_message(user_id, text)
+
+    def matched_symbol_only(self) -> set[str]:
+        """Вернёт множество тикеров независимо от формата matched."""
+        return {item[0] for item in self.matched}
 

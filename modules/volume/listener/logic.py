@@ -10,6 +10,10 @@ class VolumeAmountListener(Listener):
 
     ВНИМАНИЕ: percent - в данном случае это не процент, а абсолютное значение объёма в USD
     """
+    @property
+    def period_sec(self) -> int:
+        return self.interval
+
     async def update_state(self, db_pool: asyncpg.Pool) -> None:
         """Проверяет условия объёма и отправляет уведомления при их выполнении.
 

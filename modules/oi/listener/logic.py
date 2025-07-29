@@ -4,8 +4,6 @@ from typing import Final, Tuple
 from modules.listener import Listener
 from modules.oi.config import OI_HISTORY_PERIOD_SEC
 
-__all__ = ["OIListener"]
-
 
 class OIListener(Listener):
     """Отслеживает Δ% между текущим OI и медианой за 24 ч."""
@@ -33,6 +31,10 @@ class OIListener(Listener):
         """
         super().__init__(condition_id, direction, percent, interval or 60)
         self.matched: list[Tuple[str, float, float]] = []
+
+    @property
+    def period_sec(self) -> int:
+        return self.interval
 
     async def update_state(self, db_pool: asyncpg.Pool) -> None:
         """Обновляет состояние слушателя свежими данными из БД.
