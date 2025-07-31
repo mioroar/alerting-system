@@ -18,6 +18,8 @@ from modules.volume.listener.manager import get_volume_amount_listener_manager
 from modules.volume_change.listener.manager import get_volume_change_listener_manager
 from modules.oi.listener.manager import get_oi_listener_manager
 from modules.funding.listener.manager import get_funding_listener_manager
+from modules.composite.manager import CompositeListenerManager
+from modules.composite.utils import ast_to_string
 
 another_router: Router = Router()
 
@@ -67,12 +69,14 @@ async def get_all_listeners_handler(message: Message) -> None:
     volume_change_manager = await get_volume_change_listener_manager()
     oi_manager = await get_oi_listener_manager()
     funding_manager = await get_funding_listener_manager()
+    composite_manager = CompositeListenerManager.instance()
 
     price_listeners = price_manager.get_all_user_listeners(user_id)
     volume_amount_listeners = volume_amount_manager.get_all_user_listeners(user_id)
     volume_change_listeners = volume_change_manager.get_all_user_listeners(user_id)
     oi_listeners = oi_manager.get_all_user_listeners(user_id)
     funding_listeners = funding_manager.get_all_user_listeners(user_id)
+    composite_subscriptions = composite_manager.get_user_subscriptions(user_id)
 
     parts: List[str] = []
 
@@ -138,6 +142,23 @@ async def get_all_listeners_handler(message: Message) -> None:
             )
             for l in funding_listeners
         ],
+        parts,
+    )
+
+    composite_alerts = []
+    for condition_id in composite_subscriptions:
+        listener = composite_manager.get_listener_by_id(condition_id)
+        if listener:
+            expr_str = ast_to_string(listener._root)
+            cooldown_info = f" (cooldown: {listener._cooldown}s)" if listener._cooldown > 0 else ""
+            composite_alerts.append(
+                f"• <code>{_esc(expr_str)}</code>{_esc(cooldown_info)}\n"
+                f"  ID: <code>{_esc(condition_id)}</code>"
+            )
+    
+    _add_section(
+        "<b>🔗 Композитные алерты:</b>",
+        composite_alerts,
         parts,
     )
 

@@ -1,6 +1,7 @@
-import datetime as dt, uuid
+import datetime as dt
 from typing import Dict, List, Set
 
+from bot.settings import bot
 from modules.listener import Listener
 from .ast_transform import Cooldown, Expr
 from .plan import compile_plan, PlanFn
@@ -29,15 +30,16 @@ class CompositeListener:
         _next_check (dt.datetime | None): Время следующей проверки.
     """
 
-    def __init__(self, expr: Expr, owner: int) -> None:
+    def __init__(self, expr: Expr, owner: int, listener_id: str) -> None:
         """
         Инициализация CompositeListener.
 
         Args:
             expr (Expr): AST выражение условия алерта.
             owner (int): ID владельца слушателя.
+            listener_id (str): Уникальный ID слушателя.
         """
-        self.id: str = f"cmp-{uuid.uuid4()}"
+        self.id: str = listener_id
         self.owner = owner
         self.subscribers: set[int] = {owner}
 
@@ -136,7 +138,6 @@ class CompositeListener:
         Returns:
             None
         """
-        from bot.settings import bot
         msg = (
             "⚡️ Композитный алерт\n"
             f"Тикеры: {', '.join(sorted(self._matched))}\n"
@@ -144,20 +145,26 @@ class CompositeListener:
         )
         print("[SUBS]", self.subscribers)
         
-        for uid in self.subscribers:
+        for user_id in self.subscribers:
             try:
-                await bot.send_message(uid, msg)
+                await bot.send_message(user_id, msg)
             except Exception as exc:
-                print("[SEND ERR]", uid, exc)
+                print("[SEND ERR]", user_id, exc)
 
-    def add_subscriber(self, uid: int) -> None:
+    def add_subscriber(self, user_id: int) -> None:
         """
         Добавляет подписчика на алерт.
 
         Args:
-            uid (int): ID пользователя.
+            user_id (int): ID пользователя.
         """
-        self.subscribers.add(uid)
+        self.subscribers.add(user_id)
+
+    def remove_subscriber(self, user_id: int) -> None:
+        """
+        Удаляет подписчика из алерта.
+        """
+        self.subscribers.remove(user_id)
 
     @property
     def period_sec(self) -> int:
@@ -177,3 +184,23 @@ class CompositeListener:
             TickerSet: Совпавшие тикеры.
         """
         return self._matched
+
+    async def stop(self) -> None:
+        """
+        Останавливает композитный слушатель и освобождает ресурсы.
+
+        Останавливает все дочерние слушатели и очищает внутренние данные.
+
+        Returns:
+            None
+        """
+        for leaf_listener in self._leaf_listeners:
+            try:
+                await leaf_listener.stop()
+            except Exception as exc:
+                print(f"[COMPOSITE] Ошибка при остановке дочернего слушателя: {exc}")
+        
+        self._leaf_listeners.clear()
+        self.subscribers.clear()
+        self._matched.clear()
+        self._last_fired.clear()

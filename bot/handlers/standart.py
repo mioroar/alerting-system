@@ -55,6 +55,14 @@ async def start_handler(message: Message) -> None:
 • <code>/unsubscribe_from_funding_listener [ID]</code>
 • <code>/unsubscribe_all_funding</code>
 
+<b>🔗 Композитные алерты:</b>
+• <code>/alert [выражение]</code> — создание композитного алерта
+  Пример: <code>/alert price &gt; 5 300 &amp; oi &lt; 100 @10</code>
+• <code>/my_alerts</code> — показать все ваши композитные алерты
+• <code>/unsubscribe [ID]</code> — отписка от конкретного алерта по ID
+  Пример: <code>/unsubscribe 1234567890</code>
+• <code>/unsubscribe_all</code> — отписка от всех композитных алертов
+
 <b>📋 Общие команды:</b>
 • <code>/get_all_listeners</code> — показать все активные подписки
 

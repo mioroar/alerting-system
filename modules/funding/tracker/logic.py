@@ -56,7 +56,7 @@ async def fetch_funding_info() -> List[FundingInfo]:
                 logger.warning("Empty symbol in funding data: %s", item)
                 continue
                 
-            if any(blacklisted in symbol.lower() for blacklisted in [t.lower() for t in TICKER_BLACKLIST]):
+            if any(blacklisted.lower() in symbol.lower() for blacklisted in TICKER_BLACKLIST):
                 continue
             
             rate = item.get("lastFundingRate")
