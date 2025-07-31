@@ -94,45 +94,61 @@ class CompositeListener:
         if now < self._next_check:
             return
 
-        context = {
-            cond.module: lst.matched_symbol_only()
-            for cond, lst in zip(self._leaf_conditions, self._leaf_listeners)
-        }
-
-        for mod, tickers in context.items():
-            print(f"[CTX {mod:7}] {sorted(tickers)}")
-
-        triggered: Set[str] = self._plan(context)
-        print("[TRG raw ]", sorted(triggered))
-
-        if self._cooldown:
-            triggered = {
-                t for t in triggered
-                if now - self._last_fired.get(t, dt.datetime.min)
-                >= dt.timedelta(seconds=self._cooldown)
-            }
-            print("[TRG cool]", sorted(triggered))
-            for t in triggered:
-                self._last_fired[t] = now
-
-        self._matched = triggered
-
-
-        if self._matched:
-            from bot.settings import bot
-            msg = (
-                "⚡️ Композитный алерт\n"
-                f"Тикеры: {', '.join(sorted(self._matched))}\n"
-                f"Условие: {ast_to_string(self._root)}"
-            )
-            print("[SUBS]", self.subscribers)
-            for uid in self.subscribers:
+        try:
+            context = {}
+            for cond, lst in zip(self._leaf_conditions, self._leaf_listeners):
                 try:
-                    await bot.send_message(uid, msg)
+                    tickers = lst.matched_symbol_only()
+                    context[cond.module] = tickers
+                    print(f"[CTX {cond.module:7}] {sorted(tickers)}")
                 except Exception as exc:
-                    print("[SEND ERR]", uid, exc)
+                    print(f"[CTX ERROR {cond.module}] {exc}")
+                    context[cond.module] = set()
 
-        self._next_check = now + dt.timedelta(seconds=self._period)
+            triggered: Set[str] = self._plan(context)
+            print("[TRG raw ]", sorted(triggered))
+
+            if self._cooldown:
+                cooldown_filtered = set()
+                for ticker in triggered:
+                    last_fired = self._last_fired.get(ticker, dt.datetime.min)
+                    if now - last_fired >= dt.timedelta(seconds=self._cooldown):
+                        cooldown_filtered.add(ticker)
+                        self._last_fired[ticker] = now
+                
+                triggered = cooldown_filtered
+                print("[TRG cool]", sorted(triggered))
+
+            self._matched = triggered
+
+            if self._matched:
+                await self._send_notifications()
+
+        except Exception as exc:
+            print(f"[UPDATE ERROR] {self.id}: {exc}")
+        finally:
+            self._next_check = now + dt.timedelta(seconds=self._period)
+
+    async def _send_notifications(self) -> None:
+        """
+        Отправляет уведомления всем подписчикам.
+
+        Returns:
+            None
+        """
+        from bot.settings import bot
+        msg = (
+            "⚡️ Композитный алерт\n"
+            f"Тикеры: {', '.join(sorted(self._matched))}\n"
+            f"Условие: {ast_to_string(self._root)}"
+        )
+        print("[SUBS]", self.subscribers)
+        
+        for uid in self.subscribers:
+            try:
+                await bot.send_message(uid, msg)
+            except Exception as exc:
+                print("[SEND ERR]", uid, exc)
 
     def add_subscriber(self, uid: int) -> None:
         """
@@ -142,24 +158,6 @@ class CompositeListener:
             uid (int): ID пользователя.
         """
         self.subscribers.add(uid)
-
-    async def _notify(self) -> None:
-        """
-        Отправляет уведомление всем подписчикам, если есть совпадения.
-
-        Returns:
-            None
-        """
-        if not self._matched:
-            return
-        from bot.settings import bot
-        msg = (
-            "⚡️ Композитный алерт\n"
-            f"Тикеры: {', '.join(sorted(self._matched))}\n"
-            f"Условие: {self._root}"
-        )
-        for uid in self.subscribers:
-            await bot.send_message(uid, msg)
 
     @property
     def period_sec(self) -> int:

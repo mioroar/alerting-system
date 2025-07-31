@@ -4,12 +4,13 @@ from typing import List
 
 from config import logger
 from modules.funding.config import BINANCE_FUNDING_URL, FundingInfo
+from modules.config import TICKER_BLACKLIST
 
 
 async def fetch_funding_info() -> List[FundingInfo]:
     """Асинхронно запрашивает funding-ставки всех perp-пар Binance.
 
-    Исключает пары с «USDC» (они неинтересны) и конвертирует к типу FundingInfo.
+    Исключает пары из TICKER_BLACKLIST и конвертирует к типу FundingInfo.
 
     Returns:
         List[FundingInfo]: Список информации о funding ставках.
@@ -21,10 +22,10 @@ async def fetch_funding_info() -> List[FundingInfo]:
         Exception: При неожиданных ошибках.
 
     Note:
-        Исключает пары с «USDC» из результатов.
+        Исключает пары из TICKER_BLACKLIST из результатов.
     """
     try:
-        async with httpx.AsyncClient(timeout=30) as client:  # Увеличил timeout
+        async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(BINANCE_FUNDING_URL)
             resp.raise_for_status()
             raw = resp.json()
@@ -55,10 +56,9 @@ async def fetch_funding_info() -> List[FundingInfo]:
                 logger.warning("Empty symbol in funding data: %s", item)
                 continue
                 
-            if "usdc" in symbol.lower():
+            if any(blacklisted in symbol.lower() for blacklisted in [t.lower() for t in TICKER_BLACKLIST]):
                 continue
             
-            # Проверяем обязательные поля
             rate = item.get("lastFundingRate")
             next_funding_time = item.get("nextFundingTime")
             
@@ -69,7 +69,7 @@ async def fetch_funding_info() -> List[FundingInfo]:
             
             items.append({
                 "symbol": symbol,
-                "rate": str(rate),  # Приводим к строке явно
+                "rate": str(rate),
                 "next_funding_ts": int(next_funding_time),
                 "time": now_ms,
             })

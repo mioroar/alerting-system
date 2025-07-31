@@ -41,6 +41,7 @@ async def create_listener(cond: Condition, uid: int) -> Listener:
 
 
 async def _price_factory(cond: Condition, _) -> Listener:
+    """price >|< percent interval → PriceListener"""
     manager = await get_price_listener_manager()
     listener = await manager.add_listener(
         {
@@ -54,14 +55,16 @@ async def _price_factory(cond: Condition, _) -> Listener:
 
 
 async def _oi_factory(cond: Condition, _) -> Listener:
-    """OI: op percent [interval?] → Listener."""
+    """oi >|< percent → OIListener (interval автоматически подставляется)"""
     manager = await get_oi_listener_manager()
     params = {
         "direction": cond.op,
         "percent":  cond.params[0],
+        # interval подставится автоматически в OIListenerManager
     }
     listener = await manager.add_listener(params, user_id=None)
     return listener
+
 
 async def _funding_factory(cond: Condition, _) -> Listener:
     """funding >|< percent time_threshold_sec → FundingListener"""
@@ -83,7 +86,7 @@ async def _volume_factory(cond: Condition, _) -> Listener:
     listener = await manager.add_listener(
         {
             "direction": cond.op,
-            "percent":  cond.params[0],
+            "percent": cond.params[0],
             "interval": int(cond.params[1]),
         },
         user_id=None,

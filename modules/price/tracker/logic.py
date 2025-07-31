@@ -1,7 +1,8 @@
 import httpx
 from typing import Iterable
 import time
-from modules.price.config import PriceInfo, PRICE_API_URL, TICKER_BLACKLIST, _CACHE_TTL_SEC, EXINFO_API_URL, _ExSymbol, MAX_AGE_MS
+from modules.price.config import PriceInfo, PRICE_API_URL, _CACHE_TTL_SEC, EXINFO_API_URL, _ExSymbol, MAX_AGE_MS
+from modules.config import TICKER_BLACKLIST
 
 _cached_symbols: set[str] = set()
 _cached_symbols_ts: float = 0.0
@@ -45,12 +46,11 @@ async def fetch_price_info() -> list[PriceInfo]:
         raw = resp.json()
 
         now_ms = int(time.time() * 1000)
-        lower_black = {t.lower() for t in TICKER_BLACKLIST}
 
         return [
             {"symbol": d["symbol"], "price": d["price"], "time": d["time"]}
             for d in raw
             if d["symbol"] in trading
-            and d["symbol"].lower() not in lower_black
+            and not any(blacklisted.lower() in d["symbol"].lower() for blacklisted in TICKER_BLACKLIST)
             and now_ms - int(d["time"]) < MAX_AGE_MS
         ]

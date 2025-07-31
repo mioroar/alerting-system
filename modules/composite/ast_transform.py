@@ -61,7 +61,7 @@ _PARAM_SPEC: Final[dict[str, tuple[int, ...]]] = {
     "price":         (2,),
     "volume":        (2,),
     "volume_change": (2,),
-    "spread":        (2,),
+#    "spread":        (2,),
 }
 
 

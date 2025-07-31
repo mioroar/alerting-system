@@ -3,7 +3,8 @@ import asyncio
 import time
 from typing import List, Set
 
-from modules.oi.config import EXINFO_API_URL, OI_API_URL, OIInfo, TICKER_BLACKLIST, _get_client
+from modules.oi.config import EXINFO_API_URL, OI_API_URL, OIInfo, _get_client
+from modules.config import TICKER_BLACKLIST
 from config import logger
 
 _FAILED_SYMBOLS: Set[str] = set()
@@ -79,7 +80,7 @@ async def _get_perp_symbols() -> list[str]:
                 
                 if (s.get("contractType") != "PERPETUAL" or 
                     s.get("status") != "TRADING" or
-                    any(blk in symbol for blk in TICKER_BLACKLIST)):
+                    any(blk.lower() in symbol.lower() for blk in TICKER_BLACKLIST)):
                     continue
                 
                 if _is_symbol_blacklisted(symbol):

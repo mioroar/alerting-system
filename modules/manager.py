@@ -33,8 +33,17 @@ class BaseListenerManager(Generic[WhatListener]):
         Returns:
             Строковый идентификатор.
         """
-        key = (params["direction"], params["percent"], params["interval"])
-        return str(hash(key))
+        key_fields = ["direction"]
+        
+        for field in ["percent", "amount_usd", "time_threshold_sec"]:
+            if field in params:
+                key_fields.append((field, params[field]))
+                break
+        
+        if "interval" in params:
+            key_fields.append(("interval", params["interval"]))
+        
+        return str(hash(tuple(key_fields)))
 
     async def add_listener(
             self,

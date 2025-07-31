@@ -7,10 +7,10 @@ import httpx
 import websockets
 from modules.volume_change.config import (
     VolumeInfo,
-    TICKER_BLACKLIST,
     EXINFO_API_URL,
     _CACHE_TTL_SEC,
 )
+from modules.config import TICKER_BLACKLIST
 from db.logic import upsert_volumes
 from modules.volume_change.config import _FLUSH_INTERVAL_SEC
 from modules.volume_change.config import _STREAM_URL
@@ -41,7 +41,7 @@ async def _get_trading_symbols() -> Sequence[str]:
             s["symbol"]
             for s in resp.json()["symbols"]
             if s["status"] == "TRADING"
-            and s["symbol"].lower() not in {t.lower() for t in TICKER_BLACKLIST}
+            and not any(blacklisted.lower() in s["symbol"].lower() for blacklisted in TICKER_BLACKLIST)
         ]
 
     _cached_symbols = set(symbols)
