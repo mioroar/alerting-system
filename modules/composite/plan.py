@@ -48,27 +48,3 @@ def compile_plan(expr: Expr) -> PlanFn:
         return _any
 
     raise TypeError(f"Unsupported node: {expr!r}")
-
-# Тест
-# python -m modules.composite.plan    
-
-# if __name__ == "__main__":
-#     from modules.composite.ast_transform import Condition, And, Or
-
-#     ast = And(
-#         items=[
-#             Condition("price", ">", (5.0, 300)),
-#             Or(items=[
-#                 Condition("oi", "<", (100.0,)),
-#                 Condition("volume_change", ">", (50.0, 600)),
-#             ]),
-#         ],
-#     )
-#     plan = compile_plan(ast)
-
-#     ctx = {
-#         "price": {"BTC", "ETH"},
-#         "oi": {"ETH"},
-#         "volume_change": {"BTC"},
-#     }
-#     print(plan(ctx))           # → {'BTC', 'ETH'}

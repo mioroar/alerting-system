@@ -53,4 +53,4 @@ def ast_to_string(expr: Expr) -> str:
     if isinstance(expr, Cooldown):
         return f"{ast_to_string(expr.expr)} @{expr.seconds}"
 
-    raise TypeError(expr)     # на случай неизвестного типа
+    raise TypeError(expr)
