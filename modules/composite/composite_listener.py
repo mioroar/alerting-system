@@ -1,7 +1,9 @@
 import datetime as dt
+from functools import cached_property
 from typing import Dict, List, Set
 
 from bot.settings import bot
+from config import logger
 from modules.listener import Listener
 from .ast_transform import Cooldown, Expr
 from .plan import compile_plan, PlanFn
@@ -102,13 +104,13 @@ class CompositeListener:
                 try:
                     tickers = lst.matched_symbol_only()
                     context[cond.module] = tickers
-                    print(f"[CTX {cond.module:7}] {sorted(tickers)}")
+                    logger.debug(f"[CTX {cond.module:7}] {sorted(tickers)}")
                 except Exception as exc:
-                    print(f"[CTX ERROR {cond.module}] {exc}")
+                    logger.error(f"[CTX ERROR {cond.module}] {exc}")
                     context[cond.module] = set()
 
             triggered: Set[str] = self._plan(context)
-            print("[TRG raw ]", sorted(triggered))
+            logger.debug(f"[TRG raw ] {sorted(triggered)}")
 
             if self._cooldown:
                 cooldown_filtered = set()
@@ -119,7 +121,7 @@ class CompositeListener:
                         self._last_fired[ticker] = now
                 
                 triggered = cooldown_filtered
-                print("[TRG cool]", sorted(triggered))
+                logger.debug(f"[TRG cool] {sorted(triggered)}")
 
             self._matched = triggered
 
@@ -127,7 +129,7 @@ class CompositeListener:
                 await self._send_notifications()
 
         except Exception as exc:
-            print(f"[UPDATE ERROR] {self.id}: {exc}")
+            logger.error(f"[UPDATE ERROR] {self.id}: {exc}")
         finally:
             self._next_check = now + dt.timedelta(seconds=self._period)
 
@@ -143,13 +145,13 @@ class CompositeListener:
             f"Тикеры: {', '.join(sorted(self._matched))}\n"
             f"Условие: {ast_to_string(self._root)}"
         )
-        print("[SUBS]", self.subscribers)
+        logger.info(f"[SUBS] {self.subscribers}")
         
         for user_id in self.subscribers:
             try:
                 await bot.send_message(user_id, msg)
             except Exception as exc:
-                print("[SEND ERR]", user_id, exc)
+                logger.error(f"[SEND ERR] {user_id} {exc}")
 
     def add_subscriber(self, user_id: int) -> None:
         """
@@ -166,24 +168,6 @@ class CompositeListener:
         """
         self.subscribers.remove(user_id)
 
-    @property
-    def period_sec(self) -> int:
-        """
-        Минимальный период проверки в секундах.
-
-        Returns:
-            int: Период проверки.
-        """
-        return self._period
-
-    def matched_symbol_only(self) -> TickerSet:
-        """
-        Совместимость с Composite‑планом (для вложенных структур).
-
-        Returns:
-            TickerSet: Совпавшие тикеры.
-        """
-        return self._matched
 
     async def stop(self) -> None:
         """
@@ -198,9 +182,43 @@ class CompositeListener:
             try:
                 await leaf_listener.stop()
             except Exception as exc:
-                print(f"[COMPOSITE] Ошибка при остановке дочернего слушателя: {exc}")
+                logger.error(f"[COMPOSITE] Ошибка при остановке дочернего слушателя: {exc}")
         
         self._leaf_listeners.clear()
         self.subscribers.clear()
         self._matched.clear()
         self._last_fired.clear()
+
+    @property
+    def matched_symbol_only(self) -> TickerSet:
+        """
+        Совместимость с Composite‑планом (для вложенных структур).
+
+        Returns:
+            TickerSet: Совпавшие тикеры.
+        """
+        return self._matched
+
+    @property
+    def period_sec(self) -> int:
+        """
+        Минимальный период проверки в секундах.
+
+        Returns:
+            int: Период проверки.
+        """
+        return self._period
+    
+    @property
+    def expression(self) -> Expr:
+        """
+        Возвращает корневое выражение AST.
+        """
+        return self._root
+    
+    @cached_property
+    def readable_expression(self) -> str:
+        """
+        Возвращает строковое представление корневого выражения AST.
+        """
+        return ast_to_string(self._root)
