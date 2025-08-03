@@ -1,7 +1,5 @@
 from typing import List
 
-from bot.settings import bot
-
 class Listener:
     """
     Базовый класс для всех слушателей.
@@ -61,15 +59,18 @@ class Listener:
         if user_id in self.subscribers:
             self.subscribers.remove(user_id)
 
-    async def notify_subscribers(self, text: str) -> None:
-        """Отправляет текстовое уведомление каждому подписчику.
+# закоменчено чтобы потестить весокеты, т.к начинает ругаться на то что токен бота неправильный
+# хотя в целом это можно нахуй выпилить ибо это не используется, но пока оставлю 
+    # async def notify_subscribers(self, text: str) -> None:
+    #     """Отправляет текстовое уведомление каждому подписчику.
 
-        Args:
-            text (str): Готовое сообщение для рассылки.
-        """
-        for user_id in self.subscribers:
-            print(f"Alert for user {user_id}: {text}")
-            await bot.send_message(user_id, text)
+    #     Args:
+    #         text (str): Готовое сообщение для рассылки.
+    #     """
+    #     from bot.settings import bot
+    #     for user_id in self.subscribers:
+    #         print(f"Alert for user {user_id}: {text}")
+    #         await bot.send_message(user_id, text)
 
     def matched_symbol_only(self) -> set[str]:
         """Вернёт множество тикеров независимо от формата matched."""

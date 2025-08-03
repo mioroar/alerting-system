@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -8,4 +9,5 @@ class AlertRequest(BaseModel):
 class AlertResponse(BaseModel):
     alert_id: str
     expression: str
-    readable_expression: str
+    subscribers_count: Optional[int] = 0
+    is_websocket_connected: Optional[bool] = False

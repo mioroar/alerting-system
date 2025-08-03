@@ -1,6 +1,6 @@
 import asyncio
 from asyncio import Semaphore
-from typing import List, Dict
+from typing import Dict
 
 from config import logger
 from .ast_transform import Expr

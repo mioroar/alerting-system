@@ -2,20 +2,20 @@ import datetime as dt
 from functools import cached_property
 from typing import Dict, List, Set
 
-from bot.settings import bot
 from config import logger
 from modules.listener import Listener
 from .ast_transform import Cooldown, Expr
 from .plan import compile_plan, PlanFn
 from .registry import create_listener
 from modules.composite.utils import collect_conditions, ast_to_string
+from api.websocket_manager import WebSocketManager
 
 TickerSet = Set[str]
 
 
 class CompositeListener:
     """
-    Логическая обёртка над набором Listener‑ов.
+    Логическая обёртка над набором Listener‑ов с поддержкой WebSocket уведомлений.
 
     Attributes:
         id (str): Уникальный идентификатор композитного слушателя.
@@ -92,7 +92,7 @@ class CompositeListener:
             [TRG raw]  – результат логического плана ДО cooldown;
             [TRG cool] – итог после фильтра cooldown;
             [SUBS]     – список подписчиков;
-            [SEND ERR] – ошибки отправки сообщений в Telegram.
+            [WS SENT]  – результат отправки через WebSocket.
         """
         now = dt.datetime.utcnow()
         if now < self._next_check:
@@ -126,32 +126,34 @@ class CompositeListener:
             self._matched = triggered
 
             if self._matched:
-                await self._send_notifications()
+                await self._send_websocket_notifications()
 
         except Exception as exc:
             logger.error(f"[UPDATE ERROR] {self.id}: {exc}")
         finally:
             self._next_check = now + dt.timedelta(seconds=self._period)
 
-    async def _send_notifications(self) -> None:
+    async def _send_websocket_notifications(self) -> None:
         """
-        Отправляет уведомления всем подписчикам.
+        Отправляет уведомления всем подписчикам через WebSocket.
 
         Returns:
             None
         """
-        msg = (
-            "⚡️ Композитный алерт\n"
-            f"Тикеры: {', '.join(sorted(self._matched))}\n"
-            f"Условие: {ast_to_string(self._root)}"
-        )
-        logger.info(f"[SUBS] {self.subscribers}")
+        alert_data = {
+            "type": "alert",
+            "alert_id": self.id,
+            "tickers": sorted(self._matched),
+            "readable_expression": self.readable_expression,
+            "timestamp": dt.datetime.utcnow().isoformat(),
+            "cooldown": self._cooldown
+        }
         
-        for user_id in self.subscribers:
-            try:
-                await bot.send_message(user_id, msg)
-            except Exception as exc:
-                logger.error(f"[SEND ERR] {user_id} {exc}")
+        logger.info(f"[ALERT] {self.id}: {alert_data['tickers']}")
+        logger.debug(f"[SUBS] {sorted(self.subscribers)}")
+        
+        sent_count = await WebSocketManager.instance().broadcast_alert(self.subscribers, alert_data)
+        logger.info(f"[WS SENT] {sent_count}/{len(self.subscribers)} подписчикам")
 
     def add_subscriber(self, user_id: int) -> None:
         """
@@ -161,13 +163,17 @@ class CompositeListener:
             user_id (int): ID пользователя.
         """
         self.subscribers.add(user_id)
+        logger.debug(f"[SUBSCRIBER] Добавлен {user_id} к алерту {self.id}")
 
     def remove_subscriber(self, user_id: int) -> None:
         """
         Удаляет подписчика из алерта.
+        
+        Args:
+            user_id (int): ID пользователя.
         """
-        self.subscribers.remove(user_id)
-
+        self.subscribers.discard(user_id)
+        logger.debug(f"[SUBSCRIBER] Удален {user_id} из алерта {self.id}")
 
     async def stop(self) -> None:
         """
