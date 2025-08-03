@@ -12,19 +12,28 @@ router = APIRouter()
 
 
 @app.websocket("/alerts/{user_id}")
-async def websocket_alerts_endpoint(websocket: WebSocket, user_id: int):
-    """
-    WebSocket endpoint для получения алертов.
-    Один WebSocket на пользователя.
+async def websocket_alerts_endpoint(websocket: WebSocket, user_id: int) -> None:
+    """WebSocket endpoint для получения алертов в реальном времени.
+    
+    Устанавливает WebSocket соединение для конкретного пользователя и обрабатывает
+    входящие сообщения. Поддерживает команды ping, get_status, get_my_alerts.
+    Отправляет алерты пользователю при их срабатывании.
     
     Args:
-        websocket (WebSocket): WebSocket соединение
-        user_id (int): ID пользователя
+        websocket: WebSocket соединение от клиента.
+        user_id: Уникальный идентификатор пользователя.
+        
+    Raises:
+        WebSocketDisconnect: При разрыве соединения.
+        Exception: При внутренних ошибках сервера.
+        
+    Note:
+        Один WebSocket на пользователя. При переподключении старый
+        WebSocket автоматически отключается.
     """
     await WebSocketManager.instance().connect(websocket, user_id)
     
     try:
-        # Отправляем приветственное сообщение
         await websocket.send_text(json.dumps({
             "type": "connected",
             "message": "Подключен к системе алертов",
@@ -32,7 +41,6 @@ async def websocket_alerts_endpoint(websocket: WebSocket, user_id: int):
             "timestamp": dt.datetime.utcnow().isoformat()
         }, ensure_ascii=False))
         
-        # Отправляем статистику по алертам пользователя
         user_subscriptions = CompositeListenerManager.instance().get_user_subscriptions(user_id)
         await websocket.send_text(json.dumps({
             "type": "user_stats",
@@ -41,20 +49,17 @@ async def websocket_alerts_endpoint(websocket: WebSocket, user_id: int):
             "timestamp": dt.datetime.utcnow().isoformat()
         }, ensure_ascii=False))
         
-        # Слушаем сообщения от клиента (для keep-alive и команд)
         while True:
             try:
                 data = await websocket.receive_text()
                 message = json.loads(data)
                 
-                # Обработка ping для keep-alive
                 if message.get("type") == "ping":
                     await websocket.send_text(json.dumps({
                         "type": "pong",
                         "timestamp": dt.datetime.utcnow().isoformat()
                     }, ensure_ascii=False))
                 
-                # Получить статус соединения
                 elif message.get("type") == "get_status":
                     user_subs = CompositeListenerManager.instance().get_user_subscriptions(user_id)
                     await websocket.send_text(json.dumps({
@@ -65,7 +70,6 @@ async def websocket_alerts_endpoint(websocket: WebSocket, user_id: int):
                         "timestamp": dt.datetime.utcnow().isoformat()
                     }, ensure_ascii=False))
                 
-                # Получить список своих алертов
                 elif message.get("type") == "get_my_alerts":
                     user_subs = CompositeListenerManager.instance().get_user_subscriptions(user_id)
                     alerts_info = []
@@ -83,7 +87,6 @@ async def websocket_alerts_endpoint(websocket: WebSocket, user_id: int):
                         "timestamp": dt.datetime.utcnow().isoformat()
                     }, ensure_ascii=False))
                 
-                # Неизвестная команда
                 else:
                     await websocket.send_text(json.dumps({
                         "type": "error",
@@ -116,8 +119,19 @@ async def websocket_alerts_endpoint(websocket: WebSocket, user_id: int):
 
 
 @app.get("/ws/status")
-async def get_websocket_status():
-    """Статус WebSocket соединений"""
+async def get_websocket_status() -> dict:
+    """Получает статистику WebSocket соединений и алертов.
+    
+    Возвращает информацию о количестве подключенных пользователей,
+    общем количестве алертов и подписчиков.
+    
+    Returns:
+        dict: Словарь со статистикой WebSocket и алертов.
+            Содержит ключи:
+            - websocket: Статистика WebSocket соединений
+            - alerts: Статистика алертов (total_alerts, total_subscribers)
+            - timestamp: Временная метка запроса
+    """
     ws_stats = WebSocketManager.instance().get_stats()
     manager = CompositeListenerManager.instance()
     
@@ -135,8 +149,26 @@ async def get_websocket_status():
 
 
 @app.post("/ws/test-alert/{user_id}")
-async def send_test_alert(user_id: int, message: str = "Тестовый алерт"):
-    """Отправка тестового алерта для проверки соединения"""
+async def send_test_alert(user_id: int, message: str = "Тестовый алерт") -> dict:
+    """Отправляет тестовый алерт указанному пользователю.
+    
+    Используется для проверки WebSocket соединения и отладки.
+    Отправляет фиктивный алерт с тикером TESTUSDT.
+    
+    Args:
+        user_id: Идентификатор пользователя для отправки алерта.
+        message: Текст сообщения алерта. По умолчанию "Тестовый алерт".
+        
+    Returns:
+        dict: Результат отправки алерта.
+            Содержит ключи:
+            - sent: True если алерт отправлен успешно
+            - user_id: ID пользователя
+            - message: Текст отправленного сообщения
+            
+    Raises:
+        HTTPException: Если пользователь не подключен (статус 404).
+    """
     if not WebSocketManager.instance().is_connected(user_id):
         raise HTTPException(status_code=404, detail=f"Пользователь {user_id} не подключен")
     
@@ -156,8 +188,24 @@ async def send_test_alert(user_id: int, message: str = "Тестовый але�
 
 
 @app.post("/ws/broadcast-message")
-async def broadcast_message(message: str, message_type: str = "announcement"):
-    """Отправка сообщения всем подключенным пользователям"""
+async def broadcast_message(message: str, message_type: str = "announcement") -> dict:
+    """Отправляет сообщение всем подключенным пользователям.
+    
+    Рассылает указанное сообщение всем активным WebSocket соединениям.
+    Полезно для системных уведомлений и объявлений.
+    
+    Args:
+        message: Текст сообщения для рассылки.
+        message_type: Тип сообщения. По умолчанию "announcement".
+        
+    Returns:
+        dict: Результат рассылки сообщения.
+            Содержит ключи:
+            - sent_to: Количество пользователей, которым отправлено сообщение
+            - total_connected: Общее количество подключенных пользователей
+            - message: Текст отправленного сообщения
+            - type: Тип отправленного сообщения
+    """
     connected_users = WebSocketManager.instance().get_connected_users()
     
     broadcast_data = {
@@ -177,8 +225,24 @@ async def broadcast_message(message: str, message_type: str = "announcement"):
 
 
 @router.get("/demo")
-async def get_demo_page():
-    """Демо-страница для тестирования WebSocket соединения"""
+async def get_demo_page() -> HTMLResponse:
+    """Возвращает HTML страницу для демонстрации WebSocket функциональности.
+    
+    Создает интерактивную веб-страницу с возможностью:
+    - Подключения к WebSocket
+    - Создания и управления алертами
+    - Просмотра входящих сообщений в реальном времени
+    - Тестирования различных WebSocket команд
+    
+    Returns:
+        HTMLResponse: HTML страница с JavaScript кодом для демонстрации
+            WebSocket функциональности системы алертов.
+            
+    Note:
+        Страница содержит полный интерфейс для тестирования всех
+        возможностей WebSocket API, включая создание алертов,
+        получение уведомлений и управление соединением.
+    """
     html = """
     <!DOCTYPE html>
     <html>

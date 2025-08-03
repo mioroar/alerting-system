@@ -38,6 +38,21 @@ class WebSocketManager:
             cls._instance = cls()
         return cls._instance
     
+    async def _safe_close_websocket(self, websocket: WebSocket, user_id: int) -> None:
+        """Безопасно закрывает WebSocket соединение.
+        
+        Проверяет состояние соединения и закрывает его с обработкой ошибок.
+        
+        Args:
+            websocket: WebSocket соединение для закрытия.
+            user_id: Идентификатор пользователя для логирования.
+        """
+        try:
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.close()
+        except Exception as exc:
+            logger.warning(f"[WS] Ошибка закрытия соединения {user_id}: {exc}")
+    
     async def connect(self, websocket: WebSocket, user_id: int) -> None:
         """Подключает пользователя к WebSocket.
         
@@ -56,11 +71,7 @@ class WebSocketManager:
         async with self._lock:
             if user_id in self._connections:
                 old_ws = self._connections[user_id]
-                try:
-                    if old_ws.client_state == WebSocketState.CONNECTED:
-                        await old_ws.close()
-                except Exception as exc:
-                    logger.warning(f"[WS] Ошибка закрытия старого соединения {user_id}: {exc}")
+                await self._safe_close_websocket(old_ws, user_id)
             
             self._connections[user_id] = websocket
         
@@ -81,11 +92,7 @@ class WebSocketManager:
         async with self._lock:
             websocket = self._connections.pop(user_id, None)
             if websocket:
-                try:
-                    if websocket.client_state == WebSocketState.CONNECTED:
-                        await websocket.close()
-                except Exception as exc:
-                    logger.warning(f"[WS] Ошибка закрытия соединения {user_id}: {exc}")
+                await self._safe_close_websocket(websocket, user_id)
         
         logger.info(f"[WS] Пользователь {user_id} отключен")
     
