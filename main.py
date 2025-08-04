@@ -15,13 +15,14 @@ from modules.volume_change.volume import main as volume_change_main
 from modules.oi.oi import main as oi_main
 from modules.funding.funding import main as funding_main
 from bot.handlers.modules.composite import composite_loop
+from db.init_db import init_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Управляет жизненным циклом приложения."""
     background_task = asyncio.create_task(alert_processing_loop())
-    
+    await init_db()
     yield
     
     background_task.cancel()

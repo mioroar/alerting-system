@@ -2,7 +2,6 @@ import asyncio
 import datetime as dt
 
 from config import logger
-from db.init_db import init_db
 from db.logic import get_pool, upsert_funding_rates
 from modules.funding.config import FUNDING_CHECK_INTERVAL_SEC
 from modules.funding.tracker.logic import fetch_funding_info
@@ -86,7 +85,6 @@ async def main() -> None:
     Note:
         Обеспечивает graceful shutdown с закрытием пула соединений.
     """
-    await init_db()
     pool = None
     try:
         await collect_funding_loop()

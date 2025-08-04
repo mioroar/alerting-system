@@ -1,7 +1,6 @@
 import asyncio
 
 from config import logger
-from db.init_db import init_db
 from db.logic import get_pool, upsert_open_interest
 from modules.oi.config import OI_CHECK_INTERVAL_SEC
 from modules.oi.tracker.logic import fetch_oi_info, get_blacklist_stats
@@ -86,7 +85,6 @@ async def main() -> None:
     logger.info("Starting OI tracker service")
     
     try:
-        await init_db()
         await collect_oi_loop()
     except KeyboardInterrupt:
         logger.info("Received interrupt signal, shutting down...")

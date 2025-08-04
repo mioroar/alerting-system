@@ -3,7 +3,6 @@ from config import logger
 from modules.price.config import PRICE_CHECK_INTERVAL_IN_SECONDS
 from modules.price.tracker.logic import fetch_price_info
 from db.logic import upsert_prices, get_pool
-from db.init_db import init_db
 
 async def collect_price_info_loop() -> None:
     """Цикл сбора цен с Binance и сохранения в базу данных."""
@@ -22,7 +21,6 @@ async def collect_price_info_loop() -> None:
 async def main() -> None:
     """Точка входа для запуска цикла сбора цен."""
     logger.info("Starting price tracker")
-    await init_db()
     try:
         await collect_price_info_loop()
     except Exception as e:
