@@ -95,5 +95,4 @@ async def run_volume_tracker() -> None:
         try:
             await _stream(symbols)
         except Exception as exc:
-            print(f"WS reconnect in 5 s: {exc}")
             await asyncio.sleep(5)

@@ -804,7 +804,7 @@ async def get_demo_page() -> HTMLResponse:
                 Notification.requestPermission();
             }
 
-            ws = new WebSocket(`ws://localhost:8000/ws/alerts/${userId}`);
+            ws = new WebSocket(`ws://${window.location.host}/ws/alerts/${userId}`);
             
             ws.onopen = function() {
                 updateConnectionStatus(true);

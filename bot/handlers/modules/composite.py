@@ -12,7 +12,6 @@ alert_router: Router = Router()
 async def composite_loop(base_step: int = 5) -> None:
     mgr = CompositeListenerManager.instance()
     while True:
-        print("[LOOP]", dt.datetime.utcnow().isoformat(timespec="seconds"))
         try:
             await mgr.tick()
         except Exception as exc:

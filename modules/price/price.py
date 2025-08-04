@@ -11,7 +11,6 @@ async def collect_price_info_loop() -> None:
         try:
             price_info = await fetch_price_info()
             logger.info(f"Collected {len(price_info)} price info")
-            print(f"Collected {len(price_info)} price info")
             await upsert_prices(price_info)
         except Exception as e:
             logger.exception(f"Error collecting price info: {e}")
