@@ -1,35 +1,34 @@
 import json
 import datetime as dt
-from fastapi import FastAPI, APIRouter, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse
 from config import logger
 
 from modules.composite.manager import CompositeListenerManager
 from .websocket_manager import WebSocketManager
 
-app = FastAPI()
 router = APIRouter()
 
-
-@app.websocket("/alerts/{user_id}")
+@router.websocket("/alerts/{user_id}")
 async def websocket_alerts_endpoint(websocket: WebSocket, user_id: int) -> None:
     """WebSocket endpoint для получения алертов в реальном времени.
     
-    Устанавливает WebSocket соединение для конкретного пользователя и обрабатывает
-    входящие сообщения. Поддерживает команды ping, get_status, get_my_alerts.
-    Отправляет алерты пользователю при их срабатывании.
+    Создает WebSocket соединение для пользователя и обрабатывает входящие сообщения.
+    Отправляет приветственное сообщение, статистику пользователя и обрабатывает команды.
     
     Args:
         websocket: WebSocket соединение от клиента.
         user_id: Уникальный идентификатор пользователя.
         
     Raises:
-        WebSocketDisconnect: При разрыве соединения.
-        Exception: При внутренних ошибках сервера.
+        WebSocketDisconnect: При отключении клиента.
+        Exception: При критических ошибках обработки.
         
     Note:
-        Один WebSocket на пользователя. При переподключении старый
-        WebSocket автоматически отключается.
+        - Отправляет приветственное сообщение при подключении
+        - Отправляет статистику пользователя
+        - Обрабатывает команды ping, get_status, get_my_alerts
+        - Автоматически отключает пользователя при ошибках
     """
     await WebSocketManager.instance().connect(websocket, user_id)
     
@@ -53,46 +52,7 @@ async def websocket_alerts_endpoint(websocket: WebSocket, user_id: int) -> None:
             try:
                 data = await websocket.receive_text()
                 message = json.loads(data)
-                
-                if message.get("type") == "ping":
-                    await websocket.send_text(json.dumps({
-                        "type": "pong",
-                        "timestamp": dt.datetime.utcnow().isoformat()
-                    }, ensure_ascii=False))
-                
-                elif message.get("type") == "get_status":
-                    user_subs = CompositeListenerManager.instance().get_user_subscriptions(user_id)
-                    await websocket.send_text(json.dumps({
-                        "type": "status",
-                        "connected_users": len(WebSocketManager.instance().get_connected_users()),
-                        "your_alerts": len(user_subs),
-                        "total_alerts": len(CompositeListenerManager.instance().all_alerts),
-                        "timestamp": dt.datetime.utcnow().isoformat()
-                    }, ensure_ascii=False))
-                
-                elif message.get("type") == "get_my_alerts":
-                    user_subs = CompositeListenerManager.instance().get_user_subscriptions(user_id)
-                    alerts_info = []
-                    for alert_id, listener in user_subs.items():
-                        alerts_info.append({
-                            "alert_id": alert_id,
-                            "expression": listener.readable_expression,
-                            "subscribers_count": len(listener.subscribers),
-                            "cooldown": listener._cooldown if hasattr(listener, '_cooldown') else 0
-                        })
-                    
-                    await websocket.send_text(json.dumps({
-                        "type": "my_alerts",
-                        "alerts": alerts_info,
-                        "timestamp": dt.datetime.utcnow().isoformat()
-                    }, ensure_ascii=False))
-                
-                else:
-                    await websocket.send_text(json.dumps({
-                        "type": "error",
-                        "message": f"Неизвестная команда: {message.get('type')}",
-                        "timestamp": dt.datetime.utcnow().isoformat()
-                    }, ensure_ascii=False))
+                await handle_websocket_command(websocket, user_id, message)
                     
             except json.JSONDecodeError:
                 await websocket.send_text(json.dumps({
@@ -111,26 +71,89 @@ async def websocket_alerts_endpoint(websocket: WebSocket, user_id: int) -> None:
                 }, ensure_ascii=False))
                 
     except WebSocketDisconnect:
-        pass
+        logger.info(f"[WS] Пользователь {user_id} отключился")
     except Exception as exc:
         logger.error(f"[WS] Критическая ошибка для пользователя {user_id}: {exc}")
     finally:
         await WebSocketManager.instance().disconnect(user_id)
 
 
-@app.get("/ws/status")
+async def handle_websocket_command(websocket: WebSocket, user_id: int, message: dict) -> None:
+    """Обрабатывает команды WebSocket от клиента.
+    
+    Поддерживает следующие команды:
+    - ping: Отвечает pong для проверки соединения
+    - get_status: Возвращает статистику системы
+    - get_my_alerts: Возвращает список алертов пользователя
+    
+    Args:
+        websocket: WebSocket соединение для отправки ответов.
+        user_id: Идентификатор пользователя.
+        message: Словарь с командой и параметрами.
+        
+    Note:
+        При неизвестной команде отправляет сообщение об ошибке.
+    """
+    command_type = message.get("type")
+    
+    if command_type == "ping":
+        await websocket.send_text(json.dumps({
+            "type": "pong",
+            "timestamp": dt.datetime.utcnow().isoformat()
+        }, ensure_ascii=False))
+    
+    elif command_type == "get_status":
+        user_subs = CompositeListenerManager.instance().get_user_subscriptions(user_id)
+        await websocket.send_text(json.dumps({
+            "type": "status",
+            "connected_users": len(WebSocketManager.instance().get_connected_users()),
+            "your_alerts": len(user_subs),
+            "total_alerts": len(CompositeListenerManager.instance().all_alerts),
+            "timestamp": dt.datetime.utcnow().isoformat()
+        }, ensure_ascii=False))
+    
+    elif command_type == "get_my_alerts":
+        user_subs = CompositeListenerManager.instance().get_user_subscriptions(user_id)
+        alerts_info = []
+        for alert_id, listener in user_subs.items():
+            alerts_info.append({
+                "alert_id": alert_id,
+                "expression": listener.readable_expression,
+                "subscribers_count": len(listener.subscribers),
+                "cooldown": listener._cooldown if hasattr(listener, '_cooldown') else 0
+            })
+        
+        await websocket.send_text(json.dumps({
+            "type": "my_alerts",
+            "alerts": alerts_info,
+            "timestamp": dt.datetime.utcnow().isoformat()
+        }, ensure_ascii=False))
+    
+    else:
+        await websocket.send_text(json.dumps({
+            "type": "error",
+            "message": f"Неизвестная команда: {command_type}",
+            "timestamp": dt.datetime.utcnow().isoformat()
+        }, ensure_ascii=False))
+
+
+@router.get("/ws/status")
 async def get_websocket_status() -> dict:
     """Получает статистику WebSocket соединений и алертов.
     
-    Возвращает информацию о количестве подключенных пользователей,
-    общем количестве алертов и подписчиков.
+    Возвращает общую статистику системы, включая количество
+    подключенных пользователей, общее количество алертов и подписчиков.
     
     Returns:
-        dict: Словарь со статистикой WebSocket и алертов.
-            Содержит ключи:
+        dict: Словарь со статистикой системы:
             - websocket: Статистика WebSocket соединений
-            - alerts: Статистика алертов (total_alerts, total_subscribers)
+            - alerts: Статистика алертов (общее количество и подписчиков)
             - timestamp: Временная метка запроса
+            
+    Example:
+        response = await get_websocket_status()
+        print(response['websocket']['connected_users'])
+        5
     """
     ws_stats = WebSocketManager.instance().get_stats()
     manager = CompositeListenerManager.instance()
@@ -148,35 +171,42 @@ async def get_websocket_status() -> dict:
     }
 
 
-@app.post("/ws/test-alert/{user_id}")
+@router.post("/ws/test-alert/{user_id}")
 async def send_test_alert(user_id: int, message: str = "Тестовый алерт") -> dict:
     """Отправляет тестовый алерт указанному пользователю.
     
-    Используется для проверки WebSocket соединения и отладки.
-    Отправляет фиктивный алерт с тикером TESTUSDT.
+    Проверяет подключение пользователя и отправляет тестовое уведомление
+    для проверки работы WebSocket соединения.
     
     Args:
         user_id: Идентификатор пользователя для отправки алерта.
-        message: Текст сообщения алерта. По умолчанию "Тестовый алерт".
+        message: Текст тестового сообщения. По умолчанию "Тестовый алерт".
         
     Returns:
-        dict: Результат отправки алерта.
-            Содержит ключи:
+        dict: Результат отправки:
             - sent: True если алерт отправлен успешно
             - user_id: ID пользователя
-            - message: Текст отправленного сообщения
+            - message: Отправленное сообщение
             
     Raises:
-        HTTPException: Если пользователь не подключен (статус 404).
+        HTTPException: Если пользователь не подключен (404).
+        
+    Example:
+        >>> result = await send_test_alert(12345, "Тест")
+        >>> print(result['sent'])
+        True
     """
     if not WebSocketManager.instance().is_connected(user_id):
         raise HTTPException(status_code=404, detail=f"Пользователь {user_id} не подключен")
     
     test_data = {
-        "type": "test_alert",
-        "message": message,
+        "type": "alert",
+        "alert_id": "test-alert",
         "tickers": ["TESTUSDT"],
-        "timestamp": dt.datetime.utcnow().isoformat()
+        "readable_expression": "Тестовое условие",
+        "message": message,
+        "timestamp": dt.datetime.utcnow().isoformat(),
+        "cooldown": 0
     }
     
     success = await WebSocketManager.instance().send_alert(user_id, test_data)
@@ -187,24 +217,29 @@ async def send_test_alert(user_id: int, message: str = "Тестовый але�
     }
 
 
-@app.post("/ws/broadcast-message")
+@router.post("/ws/broadcast-message")
 async def broadcast_message(message: str, message_type: str = "announcement") -> dict:
     """Отправляет сообщение всем подключенным пользователям.
     
-    Рассылает указанное сообщение всем активным WebSocket соединениям.
-    Полезно для системных уведомлений и объявлений.
+    Создает широковещательное сообщение и отправляет его всем
+    активным WebSocket соединениям.
     
     Args:
-        message: Текст сообщения для рассылки.
-        message_type: Тип сообщения. По умолчанию "announcement".
-        
+        message: Текст сообщения для отправки.
+        message_type: Тип сообщения (announcement, warning, info). 
+                     По умолчанию "announcement".
+                     
     Returns:
-        dict: Результат рассылки сообщения.
-            Содержит ключи:
-            - sent_to: Количество пользователей, которым отправлено сообщение
+        dict: Статистика отправки:
+            - sent_to: Количество пользователей, получивших сообщение
             - total_connected: Общее количество подключенных пользователей
-            - message: Текст отправленного сообщения
-            - type: Тип отправленного сообщения
+            - message: Отправленное сообщение
+            - type: Тип сообщения
+            
+    Example:
+        result = await broadcast_message("Обновление системы", "info")
+        print(f"Отправлено {result['sent_to']} пользователям")
+        Отправлено 15 пользователям
     """
     connected_users = WebSocketManager.instance().get_connected_users()
     
@@ -222,6 +257,7 @@ async def broadcast_message(message: str, message_type: str = "announcement") ->
         "message": message,
         "type": message_type
     }
+
 
 
 @router.get("/demo")
@@ -244,518 +280,902 @@ async def get_demo_page() -> HTMLResponse:
         получение уведомлений и управление соединением.
     """
     html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>WebSocket Alerts Demo</title>
-        <style>
-            body { 
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                margin: 20px; 
-                background-color: #f5f5f5; 
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🚨 Alerts Dashboard</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            height: fit-content;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .status-indicator {
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-indicator::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .connected { 
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+        
+        .disconnected { 
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+        }
+        
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        input, button {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        input {
+            width: 100%;
+            background: white;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            cursor: pointer;
+            border: none;
+            color: white;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            width: 100%;
+            margin-top: 5px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+        }
+        
+        .btn-danger:hover {
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+        
+        .btn-success:hover {
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+        
+        .alerts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        .alert-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .alert-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        }
+        
+        .alert-card.triggered {
+            animation: alertTrigger 3s ease-in-out;
+            border-left-color: #ff4444;
+        }
+        
+        @keyframes alertTrigger {
+            0% { transform: scale(1); }
+            10% { transform: scale(1.05); box-shadow: 0 0 30px rgba(255, 68, 68, 0.6); }
+            20% { transform: scale(1); }
+            30% { transform: scale(1.05); box-shadow: 0 0 30px rgba(255, 68, 68, 0.6); }
+            100% { transform: scale(1); }
+        }
+        
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .alert-id {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #666;
+            background: #f5f5f5;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .alert-expression {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #2c3e50;
+            margin: 10px 0;
+            border: 1px solid #dee2e6;
+        }
+        
+        .alert-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .alert-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        
+        .alert-actions button {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 12px;
+            margin: 0;
+        }
+        
+        .triggered-alert {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #ff4444;
+            box-shadow: 0 4px 20px rgba(255, 68, 68, 0.2);
+            animation: newAlert 0.5s ease-out;
+        }
+        
+        @keyframes newAlert {
+            0% { 
+                opacity: 0; 
+                transform: translateX(100%) scale(0.8); 
             }
-            .container { 
-                max-width: 1000px; 
-                margin: 0 auto; 
-                background: white; 
-                padding: 20px; 
-                border-radius: 8px; 
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            100% { 
+                opacity: 1; 
+                transform: translateX(0) scale(1); 
             }
+        }
+        
+        .triggered-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .triggered-time {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .triggered-tickers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin: 10px 0;
+        }
+        
+        .ticker-badge {
+            background: linear-gradient(135deg, #ff4444, #cc0000);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .examples {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .examples code {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .my-alerts-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .triggered-alerts {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        .no-alerts {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+            font-style: italic;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .ws-commands {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .ws-commands button {
+            flex: 1;
+            min-width: 80px;
+            font-size: 12px;
+            padding: 8px 12px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 10px;
+            }
+            
             .header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 20px;
-                padding-bottom: 10px;
-                border-bottom: 2px solid #e0e0e0;
-            }
-            .section {
-                margin: 20px 0;
-                padding: 15px;
-                border: 1px solid #e0e0e0;
-                border-radius: 5px;
-                background: #fafafa;
-            }
-            .section h3 {
-                margin-top: 0;
-                color: #333;
-            }
-            .messages { 
-                border: 1px solid #ccc; 
-                height: 400px; 
-                overflow-y: scroll; 
-                padding: 10px; 
-                margin: 10px 0; 
-                background: white;
-                border-radius: 5px;
-            }
-            .message { 
-                margin: 5px 0; 
-                padding: 8px; 
-                border-radius: 4px; 
-                word-wrap: break-word;
-            }
-            .alert { 
-                background-color: #ffebee; 
-                border-left: 4px solid #f44336; 
-                animation: alertPulse 2s ease-in-out;
-            }
-            .alert-created { 
-                background-color: #e8f5e8; 
-                border-left: 4px solid #4caf50; 
-            }
-            .alert-deleted { 
-                background-color: #fff3e0; 
-                border-left: 4px solid #ff9800; 
-            }
-            .system { 
-                background-color: #e3f2fd; 
-                border-left: 4px solid #2196f3; 
-            }
-            .error { 
-                background-color: #ffebee; 
-                border-left: 4px solid #f44336; 
-            }
-            .status { 
-                background-color: #f3e5f5; 
-                border-left: 4px solid #9c27b0; 
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
             }
             
-            @keyframes alertPulse {
-                0% { transform: scale(1); }
-                50% { transform: scale(1.02); box-shadow: 0 0 15px rgba(244, 67, 54, 0.3); }
-                100% { transform: scale(1); }
+            .alerts-grid {
+                grid-template-columns: 1fr;
             }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Connection -->
+            <div class="section">
+                <h3>🔌 Подключение</h3>
+                <div class="form-group">
+                    <label>User ID:</label>
+                    <input type="number" id="userId" value="12345" />
+                </div>
+                <button onclick="connect()" class="btn-success">Подключить</button>
+                <button onclick="disconnect()" class="btn-danger">Отключить</button>
+            </div>
             
-            input, button, select, textarea { 
-                padding: 8px 12px; 
-                margin: 5px; 
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                font-size: 14px;
-            }
-            button { 
-                cursor: pointer; 
-                background: #2196f3;
-                color: white;
-                border: none;
-                transition: background 0.3s;
-            }
-            button:hover {
-                background: #1976d2;
-            }
-            button.danger {
-                background: #f44336;
-            }
-            button.danger:hover {
-                background: #d32f2f;
-            }
-            button.success {
-                background: #4caf50;
-            }
-            button.success:hover {
-                background: #388e3c;
-            }
-            .status-indicator {
-                padding: 5px 10px;
-                border-radius: 15px;
-                color: white;
-                font-weight: bold;
-            }
-            .connected { background: #4caf50; }
-            .disconnected { background: #f44336; }
+            <!-- Create Alert -->
+            <div class="section">
+                <h3>📝 Создать алерт</h3>
+                <div class="form-group">
+                    <label>Выражение:</label>
+                    <input type="text" id="alertExpression" placeholder="price > 5 300" />
+                </div>
+                <button onclick="createAlert()" class="btn-success">Создать</button>
+                
+                <div class="examples">
+                    <strong>Примеры:</strong><br>
+                    • <code>price > 5 300</code><br>
+                    • <code>price > 5 300 & volume > 1000000 60</code><br>
+                    • <code>price > 5 300 & volume > 1000000 60 | oi > 200</code><br>
+                    • <code>price > 5 300 & volume > 1000000 60 | oi > 200 @3600</code>
+                </div>
+            </div>
             
-            .form-group {
-                margin: 10px 0;
-            }
-            .form-group label {
-                display: block;
-                margin-bottom: 5px;
-                font-weight: bold;
-            }
-            .form-group input, .form-group textarea {
-                width: 100%;
-                max-width: 400px;
-            }
-            .examples {
-                background: #f0f7ff;
-                padding: 10px;
-                border-radius: 4px;
-                margin: 10px 0;
-                font-size: 12px;
-            }
-            .examples strong {
-                color: #1976d2;
-            }
+            <!-- My Alerts -->
+            <div class="section">
+                <h3>📋 Мои алерты</h3>
+                <button onclick="loadMyAlerts()">Обновить</button>
+                <button onclick="deleteAllAlerts()" class="btn-danger">Удалить все</button>
+                
+                <div id="myAlertsList" class="my-alerts-list">
+                    <div class="no-alerts">
+                        Нажмите "Обновить" для загрузки
+                    </div>
+                </div>
+            </div>
             
-            .alerts-list {
-                max-height: 200px;
-                overflow-y: auto;
-                border: 1px solid #ddd;
-                border-radius: 4px;
-                background: white;
-            }
-            .alert-item {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 10px;
-                border-bottom: 1px solid #eee;
-            }
-            .alert-item:last-child {
-                border-bottom: none;
-            }
-            .alert-expression {
-                font-family: monospace;
-                background: #f5f5f5;
-                padding: 4px 8px;
-                border-radius: 3px;
-                flex-grow: 1;
-                margin-right: 10px;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
+            <!-- WebSocket Commands -->
+            <div class="section">
+                <h3>🔧 Команды</h3>
+                <div class="ws-commands">
+                    <button onclick="sendPing()">Ping</button>
+                    <button onclick="getStatus()">Статус</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
             <div class="header">
-                <h1>🚨 WebSocket Alerts Demo</h1>
+                <h1>🚨 Alerts Dashboard</h1>
                 <div>
                     <span>Статус: </span>
                     <span id="status" class="status-indicator disconnected">Отключено</span>
                 </div>
             </div>
             
-            <!-- Подключение -->
+            <!-- Stats -->
             <div class="section">
-                <h3>🔌 Подключение</h3>
-                <div class="form-group">
-                    <label>User ID:</label>
-                    <input type="number" id="userId" value="12345" />
-                    <button onclick="connect()" class="success">Подключить</button>
-                    <button onclick="disconnect()" class="danger">Отключить</button>
-                </div>
-            </div>
-            
-            <!-- Управление алертами -->
-            <div class="section">
-                <h3>📝 Создание алертов</h3>
-                <div class="form-group">
-                    <label>Выражение алерта:</label>
-                    <input type="text" id="alertExpression" placeholder="price > 5 300" />
-                    <button onclick="createAlert()" class="success">Создать алерт</button>
-                </div>
-                <div class="examples">
-                    <strong>Примеры выражений:</strong><br>
-                    • <code>price > 5 300</code> — цена выросла больше чем на 5% за 300 секунд<br>
-                    • <code>volume > 50 60</code> — объём вырос больше чем на 50% за 60 секунд<br>
-                    • <code>oi < 20</code> — открытый интерес упал больше чем на 20%<br>
-                    • <code>funding > 0.1 600</code> — funding ставка больше 0.1% за 600 секунд до расчёта<br>
-                    • <code>price > 5 300 & oi < 100 @10</code> — композитный: цена И OI с кулдауном 10 сек
-                </div>
-            </div>
-            
-            <!-- Мои алерты -->
-            <div class="section">
-                <h3>📋 Мои алерты</h3>
-                <button onclick="loadMyAlerts()">Обновить список</button>
-                <button onclick="deleteAllAlerts()" class="danger">Удалить все</button>
-                <div id="alertsList" class="alerts-list">
-                    <div style="padding: 20px; text-align: center; color: #666;">
-                        Нажмите "Обновить список" для загрузки алертов
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="activeAlertsCount">0</div>
+                        <div class="stat-label">Активных алертов</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="triggeredCount">0</div>
+                        <div class="stat-label">Сработало сегодня</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="connectedUsers">0</div>
+                        <div class="stat-label">Подключено пользователей</div>
                     </div>
                 </div>
             </div>
             
-            <!-- WebSocket команды -->
+            <!-- Triggered Alerts -->
             <div class="section">
-                <h3>🔧 WebSocket команды</h3>
-                <button onclick="sendPing()">Ping</button>
-                <button onclick="getStatus()">Статус</button>
-                <button onclick="getMyAlerts()">Мои алерты (WS)</button>
+                <h3>🔔 Сработавшие алерты</h3>
+                <div id="triggeredAlerts" class="triggered-alerts">
+                    <div class="no-alerts">
+                        Здесь будут отображаться сработавшие алерты
+                    </div>
+                </div>
             </div>
             
-            <!-- Сообщения -->
+            <!-- Active Alerts Grid -->
             <div class="section">
-                <h3>💬 Сообщения</h3>
-                <button onclick="clearMessages()">Очистить</button>
-                <div id="messages" class="messages"></div>
+                <h3>📊 Активные алерты</h3>
+                <div id="alertsGrid" class="alerts-grid">
+                    <div class="no-alerts">
+                        Создайте первый алерт для начала работы
+                    </div>
+                </div>
             </div>
         </div>
+    </div>
 
-        <script>
-            let ws = null;
-            let userId = null;
-            let myAlerts = [];
+    <script>
+        let ws = null;
+        let userId = null;
+        let myAlerts = [];
+        let triggeredToday = 0;
+        let connectedUsers = 0;
 
-            function addMessage(message, type = 'system') {
-                const messages = document.getElementById('messages');
-                const div = document.createElement('div');
-                div.className = `message ${type}`;
+        // WebSocket Management
+        function connect() {
+            userId = document.getElementById('userId').value;
+            if (!userId) {
+                alert('Введите User ID');
+                return;
+            }
+
+            if (ws) {
+                ws.close();
+            }
+
+            // Request notification permission
+            if (Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+
+            ws = new WebSocket(`ws://localhost:8000/ws/alerts/${userId}`);
+            
+            ws.onopen = function() {
+                updateConnectionStatus(true);
+                showSystemMessage('Подключено к WebSocket', 'success');
+                loadMyAlerts();
+            };
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+
+            ws.onclose = function() {
+                updateConnectionStatus(false);
+                showSystemMessage('Отключено от WebSocket', 'error');
+            };
+
+            ws.onerror = function(error) {
+                showSystemMessage('WebSocket error: ' + error, 'error');
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('status');
+            if (connected) {
+                statusEl.textContent = 'Подключено';
+                statusEl.className = 'status-indicator connected';
+            } else {
+                statusEl.textContent = 'Отключено';
+                statusEl.className = 'status-indicator disconnected';
+            }
+        }
+
+        // WebSocket Message Handling
+        function handleWebSocketMessage(data) {
+            switch(data.type) {
+                case 'alert':
+                    handleAlertTriggered(data);
+                    break;
+                case 'alert_created':
+                    showSystemMessage('Алерт создан: ' + data.expression, 'success');
+                    loadMyAlerts();
+                    break;
+                case 'alert_deleted':
+                case 'all_alerts_deleted':
+                    showSystemMessage('Алерт удален', 'success');
+                    loadMyAlerts();
+                    break;
+                case 'status':
+                    updateStats(data);
+                    break;
+                case 'connected':
+                    showSystemMessage('Подключен к системе алертов', 'success');
+                    break;
+                case 'user_stats':
+                    updateActiveAlertsCount(data.alerts_count);
+                    break;
+                case 'pong':
+                    showSystemMessage('Pong получен', 'info');
+                    break;
+                default:
+                    console.log('Unknown message type:', data);
+            }
+        }
+
+        function handleAlertTriggered(data) {
+            // Add to triggered alerts
+            addTriggeredAlert(data);
+            
+            // Highlight the triggered alert card
+            highlightAlertCard(data.alert_id);
+            
+            // Update counter
+            triggeredToday++;
+            updateTriggeredCount();
+            
+            // Show browser notification
+            if (Notification.permission === 'granted') {
+                new Notification('🚨 Алерт сработал!', {
+                    body: `${data.tickers?.join(', ')}: ${data.readable_expression}`,
+                    icon: '🚨'
+                });
+            }
+        }
+
+        function addTriggeredAlert(data) {
+            const container = document.getElementById('triggeredAlerts');
+            
+            // Remove "no alerts" message if present
+            if (container.querySelector('.no-alerts')) {
+                container.innerHTML = '';
+            }
+            
+            const alertEl = document.createElement('div');
+            alertEl.className = 'triggered-alert';
+            alertEl.innerHTML = `
+                <div class="triggered-header">
+                    <strong>🚨 АЛЕРТ СРАБОТАЛ!</strong>
+                    <div class="triggered-time">${new Date(data.timestamp).toLocaleTimeString()}</div>
+                </div>
+                <div class="alert-expression">${data.readable_expression}</div>
+                <div class="triggered-tickers">
+                    ${data.tickers?.map(ticker => `<span class="ticker-badge">${ticker}</span>`).join('') || ''}
+                </div>
+                <div style="font-size: 12px; color: #666;">ID: ${data.alert_id}</div>
+            `;
+            
+            // Insert at the beginning
+            container.insertBefore(alertEl, container.firstChild);
+            
+            // Remove old alerts (keep only last 10)
+            const alerts = container.querySelectorAll('.triggered-alert');
+            if (alerts.length > 10) {
+                alerts[alerts.length - 1].remove();
+            }
+        }
+
+        function highlightAlertCard(alertId) {
+            const cards = document.querySelectorAll('.alert-card');
+            cards.forEach(card => {
+                if (card.dataset.alertId === alertId) {
+                    card.classList.add('triggered');
+                    setTimeout(() => {
+                        card.classList.remove('triggered');
+                    }, 3000);
+                }
+            });
+        }
+
+        // Alert Management
+        async function createAlert() {
+            const expression = document.getElementById('alertExpression').value.trim();
+            if (!expression) {
+                alert('Введите выражение алерта');
+                return;
+            }
+
+            if (!userId) {
+                alert('Сначала подключитесь');
+                return;
+            }
+
+            try {
+                const response = await fetch('/alerts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        expression: expression,
+                        user_id: userId
+                    })
+                });
+
+                const result = await response.json();
                 
-                const time = new Date().toLocaleTimeString();
-                let content = '';
-                
-                if (type === 'alert') {
-                    // Специальное форматирование для алертов
-                    content = `<strong>🚨 АЛЕРТ СРАБОТАЛ!</strong><br>
-                               <strong>Тикеры:</strong> ${message.tickers?.join(', ') || 'N/A'}<br>
-                               <strong>Условие:</strong> ${message.expression}<br>
-                               <strong>ID:</strong> ${message.alert_id}<br>
-                               <strong>Время:</strong> ${new Date(message.timestamp).toLocaleString()}`;
-                } else if (type === 'alert-created') {
-                    content = `<strong>✅ Алерт создан!</strong><br>
-                               <strong>Условие:</strong> ${message.expression}<br>
-                               <strong>ID:</strong> ${message.alert_id}<br>
-                               <strong>Сообщение:</strong> ${message.message}`;
-                } else if (type === 'alert-deleted') {
-                    content = `<strong>🗑️ Алерт удален!</strong><br>
-                               <strong>ID:</strong> ${message.alert_id}<br>
-                               <strong>Сообщение:</strong> ${message.message}`;
-                } else if (type === 'status') {
-                    content = `<strong>📊 Статус:</strong><br>
-                               <strong>Подключено пользователей:</strong> ${message.connected_users}<br>
-                               <strong>Ваших алертов:</strong> ${message.your_alerts}<br>
-                               <strong>Всего алертов:</strong> ${message.total_alerts}`;
+                if (response.ok) {
+                    showSystemMessage('Алерт создан: ' + result.expression, 'success');
+                    document.getElementById('alertExpression').value = '';
+                    loadMyAlerts();
                 } else {
-                    content = JSON.stringify(message, null, 2);
+                    showSystemMessage('Ошибка: ' + result.detail, 'error');
                 }
-                
-                div.innerHTML = `<strong>[${time}]</strong> ${content}`;
-                messages.appendChild(div);
-                messages.scrollTop = messages.scrollHeight;
-                
-                // Если это алерт, показываем уведомление браузера
-                if (type === 'alert' && Notification.permission === 'granted') {
-                    new Notification('🚨 Алерт сработал!', {
-                        body: `${message.tickers?.join(', ')}: ${message.expression}`,
-                        icon: '🚨'
-                    });
-                }
+            } catch (error) {
+                showSystemMessage('Ошибка создания алерта: ' + error.message, 'error');
+            }
+        }
+
+        async function loadMyAlerts() {
+            if (!userId) return;
+
+            try {
+                const response = await fetch(`/alerts?user_id=${userId}`);
+                const alerts = await response.json();
+                myAlerts = alerts;
+                displayMyAlerts(alerts);
+                displayAlertsGrid(alerts);
+                updateActiveAlertsCount(alerts.length);
+            } catch (error) {
+                showSystemMessage('Ошибка загрузки алертов: ' + error.message, 'error');
+            }
+        }
+
+        function displayMyAlerts(alerts) {
+            const container = document.getElementById('myAlertsList');
+            
+            if (alerts.length === 0) {
+                container.innerHTML = '<div class="no-alerts">Нет активных алертов</div>';
+                return;
             }
 
-            function connect() {
-                userId = document.getElementById('userId').value;
-                if (!userId) {
-                    alert('Введите User ID');
-                    return;
-                }
-
-                if (ws) {
-                    ws.close();
-                }
-
-                // Запрашиваем разрешение на уведомления
-                if (Notification.permission === 'default') {
-                    Notification.requestPermission();
-                }
-
-                ws = new WebSocket(`ws://localhost:8000/ws/alerts/${userId}`);
-                
-                ws.onopen = function() {
-                    document.getElementById('status').textContent = 'Подключено';
-                    document.getElementById('status').className = 'status-indicator connected';
-                    addMessage({message: 'Подключено к WebSocket'}, 'system');
-                    loadMyAlerts(); // Автоматически загружаем алерты при подключении
-                };
-
-                ws.onmessage = function(event) {
-                    const data = JSON.parse(event.data);
-                    let messageType = 'system';
-                    
-                    switch(data.type) {
-                        case 'alert':
-                            messageType = 'alert';
-                            break;
-                        case 'alert_created':
-                            messageType = 'alert-created';
-                            loadMyAlerts(); // Обновляем список алертов
-                            break;
-                        case 'alert_deleted':
-                        case 'all_alerts_deleted':
-                            messageType = 'alert-deleted';
-                            loadMyAlerts(); // Обновляем список алертов
-                            break;
-                        case 'status':
-                            messageType = 'status';
-                            break;
-                        case 'error':
-                            messageType = 'error';
-                            break;
-                    }
-                    
-                    addMessage(data, messageType);
-                };
-
-                ws.onclose = function() {
-                    document.getElementById('status').textContent = 'Отключено';
-                    document.getElementById('status').className = 'status-indicator disconnected';
-                    addMessage({message: 'Отключено от WebSocket'}, 'system');
-                };
-
-                ws.onerror = function(error) {
-                    addMessage({error: 'WebSocket error: ' + error}, 'error');
-                };
-            }
-
-            function disconnect() {
-                if (ws) {
-                    ws.close();
-                    ws = null;
-                }
-            }
-
-            function sendPing() {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({type: 'ping'}));
-                }
-            }
-
-            function getStatus() {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({type: 'get_status'}));
-                }
-            }
-
-            function getMyAlerts() {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({type: 'get_my_alerts'}));
-                }
-            }
-
-            function clearMessages() {
-                document.getElementById('messages').innerHTML = '';
-            }
-
-            async function createAlert() {
-                const expression = document.getElementById('alertExpression').value.trim();
-                if (!expression) {
-                    alert('Введите выражение алерта');
-                    return;
-                }
-
-                if (!userId) {
-                    alert('Сначала подключитесь');
-                    return;
-                }
-
-                try {
-                    const response = await fetch('/alerts', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            expression: expression,
-                            user_id: userId
-                        })
-                    });
-
-                    const result = await response.json();
-                    
-                    if (response.ok) {
-                        addMessage({
-                            message: `Алерт создан: ${result.expression}`,
-                            alert_id: result.alert_id
-                        }, 'alert-created');
-                        document.getElementById('alertExpression').value = '';
-                        loadMyAlerts();
-                    } else {
-                        addMessage({error: `Ошибка: ${result.detail}`}, 'error');
-                    }
-                } catch (error) {
-                    addMessage({error: `Ошибка создания алерта: ${error.message}`}, 'error');
-                }
-            }
-
-            async function loadMyAlerts() {
-                if (!userId) return;
-
-                try {
-                    const response = await fetch(`/alerts?user_id=${userId}`);
-                    const alerts = await response.json();
-                    myAlerts = alerts;
-                    displayAlerts(alerts);
-                } catch (error) {
-                    addMessage({error: `Ошибка загрузки алертов: ${error.message}`}, 'error');
-                }
-            }
-
-            function displayAlerts(alerts) {
-                const alertsList = document.getElementById('alertsList');
-                
-                if (alerts.length === 0) {
-                    alertsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Нет активных алертов</div>';
-                    return;
-                }
-
-                const alertsHtml = alerts.map(alert => `
-                    <div class="alert-item">
-                        <div class="alert-expression">${alert.expression}</div>
-                        <div>
-                            <small>Подписчиков: ${alert.subscribers_count} | 
-                            ${alert.is_websocket_connected ? '🟢 Подключен' : '🔴 Не подключен'}</small>
-                            <button onclick="deleteAlert('${alert.alert_id}')" class="danger" style="margin-left: 10px;">Удалить</button>
-                        </div>
+            const alertsHtml = alerts.map(alert => `
+                <div class="alert-card" style="margin-bottom: 10px; padding: 15px;">
+                    <div class="alert-id">${alert.alert_id}</div>
+                    <div class="alert-expression">${alert.expression}</div>
+                    <div class="alert-stats">
+                        <span>Подписчиков: ${alert.subscribers_count}</span>
+                        <span>${alert.is_websocket_connected ? '🟢' : '🔴'}</span>
                     </div>
-                `).join('');
+                    <button onclick="deleteAlert('${alert.alert_id}')" class="btn-danger" style="width: 100%; margin-top: 10px;">
+                        Удалить
+                    </button>
+                </div>
+            `).join('');
 
-                alertsList.innerHTML = alertsHtml;
+            container.innerHTML = alertsHtml;
+        }
+
+        function displayAlertsGrid(alerts) {
+            const container = document.getElementById('alertsGrid');
+            
+            if (alerts.length === 0) {
+                container.innerHTML = '<div class="no-alerts">Создайте первый алерт для начала работы</div>';
+                return;
             }
 
-            async function deleteAlert(alertId) {
-                if (!userId) return;
+            const alertsHtml = alerts.map(alert => `
+                <div class="alert-card" data-alert-id="${alert.alert_id}">
+                    <div class="alert-header">
+                        <h4>Алерт</h4>
+                        <div class="alert-id">${alert.alert_id}</div>
+                    </div>
+                    <div class="alert-expression">${alert.expression}</div>
+                    <div class="alert-stats">
+                        <span>👥 ${alert.subscribers_count}</span>
+                        <span>${alert.is_websocket_connected ? '🟢 Подключен' : '🔴 Отключен'}</span>
+                    </div>
+                    <div class="alert-actions">
+                        <button onclick="deleteAlert('${alert.alert_id}')" class="btn-danger">
+                            🗑️ Удалить
+                        </button>
+                    </div>
+                </div>
+            `).join('');
 
-                try {
-                    const response = await fetch(`/alerts/${alertId}?user_id=${userId}`, {
-                        method: 'DELETE'
-                    });
+            container.innerHTML = alertsHtml;
+        }
 
-                    const result = await response.json();
-                    
-                    if (response.ok) {
-                        addMessage({
-                            message: `Алерт удален: ${alertId}`,
-                            alert_id: alertId
-                        }, 'alert-deleted');
-                        loadMyAlerts();
-                    } else {
-                        addMessage({error: `Ошибка: ${result.detail}`}, 'error');
-                    }
-                } catch (error) {
-                    addMessage({error: `Ошибка удаления алерта: ${error.message}`}, 'error');
-                }
-            }
+        async function deleteAlert(alertId) {
+            if (!userId) return;
 
-            async function deleteAllAlerts() {
-                if (!userId) return;
+            try {
+                const response = await fetch(`/alerts/${alertId}?user_id=${userId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
                 
-                if (!confirm('Вы уверены, что хотите удалить все алерты?')) {
-                    return;
+                if (response.ok) {
+                    showSystemMessage('Алерт удален: ' + alertId, 'success');
+                    loadMyAlerts();
+                } else {
+                    showSystemMessage('Ошибка: ' + result.detail, 'error');
                 }
-
-                try {
-                    const response = await fetch(`/alerts?user_id=${userId}`, {
-                        method: 'DELETE'
-                    });
-
-                    const result = await response.json();
-                    
-                    if (response.ok) {
-                        addMessage({
-                            message: `Удалено алертов: ${result.removed_count}`,
-                            removed_count: result.removed_count
-                        }, 'alert-deleted');
-                        loadMyAlerts();
-                    } else {
-                        addMessage({error: `Ошибка: ${result.detail}`}, 'error');
-                    }
-                } catch (error) {
-                    addMessage({error: `Ошибка удаления всех алертов: ${error.message}`}, 'error');
-                }
+            } catch (error) {
+                showSystemMessage('Ошибка удаления алерта: ' + error.message, 'error');
             }
-        </script>
-    </body>
-    </html>
+        }
+
+        async function deleteAllAlerts() {
+            if (!userId) return;
+            
+            if (!confirm('Вы уверены, что хотите удалить все алерты?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/alerts?user_id=${userId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showSystemMessage(`Удалено алертов: ${result.removed_count}`, 'success');
+                    loadMyAlerts();
+                } else {
+                    showSystemMessage('Ошибка: ' + result.detail, 'error');
+                }
+            } catch (error) {
+                showSystemMessage('Ошибка удаления всех алертов: ' + error.message, 'error');
+            }
+        }
+
+        // WebSocket Commands
+        function sendPing() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({type: 'ping'}));
+            }
+        }
+
+        function getStatus() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({type: 'get_status'}));
+            }
+        }
+
+        // UI Updates
+        function updateStats(data) {
+            connectedUsers = data.connected_users || 0;
+            document.getElementById('connectedUsers').textContent = connectedUsers;
+            showSystemMessage(`Статус обновлен: ${data.your_alerts} ваших алертов, ${data.total_alerts} всего`, 'info');
+        }
+
+        function updateActiveAlertsCount(count) {
+            document.getElementById('activeAlertsCount').textContent = count;
+        }
+
+        function updateTriggeredCount() {
+            document.getElementById('triggeredCount').textContent = triggeredToday;
+        }
+
+        function showSystemMessage(message, type) {
+            // Simple toast notification
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                z-index: 9999;
+                max-width: 300px;
+                word-wrap: break-word;
+                animation: slideIn 0.3s ease-out;
+            `;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-in forwards';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // Add CSS animations for toast
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTriggeredCount();
+            document.getElementById('connectedUsers').textContent = connectedUsers;
+        });
+    </script>
+</body>
+</html>
     """
     return HTMLResponse(content=html)
