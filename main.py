@@ -1,15 +1,15 @@
-import asyncio
-from contextlib import suppress, asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv, find_dotenv
-import uvicorn
-from api.alerts import router as alerts_router
-from api.ws import router as ws_router
-from config import logger
-
 load_dotenv(find_dotenv(), override=True)
 
+import asyncio
+import uvicorn
+from fastapi import FastAPI
+from contextlib import suppress, asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
+
+from config import logger
+from api.alerts import router as alerts_router
+from api.ws import router as ws_router
 from modules.price.price import main as price_main
 from modules.volume_change.volume import main as volume_change_main
 from modules.oi.oi import main as oi_main
