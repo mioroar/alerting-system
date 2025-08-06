@@ -92,7 +92,7 @@ async def _get_perp_symbols() -> list[str]:
         return symbols
         
     except Exception as exc:
-        logger.error("Error fetching exchange info: %s", exc)
+        logger.exception("Error fetching exchange info: %s", exc)
         return []
 
 async def _fetch_single(symbol: str) -> OIInfo | None:
@@ -204,7 +204,7 @@ async def fetch_oi_info() -> List[OIInfo]:
         return successful_results
         
     except Exception as exc:
-        logger.error("Critical error in fetch_oi_info: %s", exc)
+        logger.exception("Critical error in fetch_oi_info: %s", exc)
         return []
 
 def get_blacklist_stats() -> dict:

@@ -15,9 +15,8 @@ async def composite_loop(base_step: int = 5) -> None:
         try:
             await mgr.tick()
         except Exception as exc:
-            import traceback, sys
-            print("[ERR] composite tick failed:", exc, file=sys.stderr)
-            traceback.print_exc()
+            from config import logger
+            logger.exception(f"Composite tick failed: {exc}")
         await asyncio.sleep(base_step)
 
 @alert_router.message(Command("alert"))
@@ -43,7 +42,9 @@ async def alert_handler(message: Message) -> None:
 
     try:
         ast = parse_expression(expr_text)
-    except Exception as exc:  # LarkError | ValueError
+    except Exception as exc:
+        from config import logger
+        logger.exception(f"Composite expression parse error: {exc}")
         await message.answer(f"Синтаксическая ошибка: <code>{exc}</code>", parse_mode="HTML")
         return
 

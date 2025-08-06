@@ -61,7 +61,7 @@ async def collect_funding_loop() -> None:
             logger.exception("Funding loop error (#%d): %s", consecutive_errors, exc)
             
             if consecutive_errors >= max_consecutive_errors:
-                logger.error("Too many consecutive errors (%d), sleeping longer", consecutive_errors)
+                logger.warning("Too many consecutive errors (%d), sleeping longer", consecutive_errors)
                 await asyncio.sleep(FUNDING_CHECK_INTERVAL_SEC * 5)
             else:
                 await asyncio.sleep(min(FUNDING_CHECK_INTERVAL_SEC * consecutive_errors, 300))
@@ -94,7 +94,7 @@ async def main() -> None:
             if pool:
                 await pool.close()
         except Exception as e:
-            logger.error("Error closing pool: %s", e)
+            logger.exception("Error closing pool: %s", e)
 
 
 if __name__ == "__main__":

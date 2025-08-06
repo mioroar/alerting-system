@@ -88,7 +88,7 @@ class FundingListener(Listener):
                     now
                 )
         except Exception as e:
-            logger.error("Database error in update_state: %s", e)
+            logger.exception("Database error in update_state: %s", e)
             return
 
         for row in rows:
@@ -136,7 +136,7 @@ class FundingListener(Listener):
                 )
                 await self.notify_subscribers(text)
             except Exception as e:
-                logger.error("Error sending notification for %s: %s", symbol, e)
+                logger.exception("Error sending notification for %s: %s", symbol, e)
 
     def _trigger(self, abs_rate: float) -> bool:
         """Проверяет условие срабатывания.

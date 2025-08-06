@@ -45,6 +45,8 @@ async def volume_handler(message: Message) -> None:
             f"Вы подписаны на условие: изменение объёма {direction} {percent}% за {interval} сек."
         )
     except Exception as e:
+        from config import logger
+        logger.exception(f"Volume change handler error: {e}")
         await message.answer(f"Ошибка: {e}\nПример: /volume > 50 60")
 
 
@@ -93,6 +95,8 @@ async def unsubscribe_from_volume_listener_handler(message: Message) -> None:
         await volume_listener_manager.remove_listener(condition_id)
         await message.answer(f"Вы отписаны от условия объёма: {condition_id}")
     except Exception as e:
+        from config import logger
+        logger.exception(f"Volume change unsubscribe error: {e}")
         await message.answer(f"Ошибка: {e}\nПример: /unsubscribe_from_volume_listener 1234567890")
 
 

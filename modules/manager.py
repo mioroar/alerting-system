@@ -121,6 +121,6 @@ class BaseListenerManager(Generic[WhatListener]):
                 await listener.update_state(db_pool)
                 await listener.notify()
             except Exception as exc:
-                logger.error("Listener %s error: %s", listener.condition_id, exc)
+                logger.exception("Listener %s error: %s", listener.condition_id, exc)
             finally:
                 await asyncio.sleep(listener.interval)

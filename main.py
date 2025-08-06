@@ -62,7 +62,7 @@ async def alert_processing_loop() -> None:
     try:
         await asyncio.gather(*tasks)
     except Exception as exc:
-        logger.error(f"Ошибка в основном цикле: {exc}")
+        logger.exception(f"Ошибка в основном цикле: {exc}")
         raise
     finally:
         for task in tasks:

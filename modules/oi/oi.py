@@ -57,7 +57,7 @@ async def collect_oi_loop() -> None:
                            iteration, consecutive_errors, exc)
             
             if consecutive_errors >= max_consecutive_errors:
-                logger.error("Too many consecutive errors (%d), using extended sleep", 
+                logger.warning("Too many consecutive errors (%d), using extended sleep", 
                            consecutive_errors)
                 await asyncio.sleep(OI_CHECK_INTERVAL_SEC * 3)
             else:
@@ -102,7 +102,7 @@ async def main() -> None:
                 await pool.close()
                 logger.info("Database pool closed")
         except Exception as exc:
-            logger.error("Error during cleanup: %s", exc)
+            logger.exception("Error during cleanup: %s", exc)
 
 
 if __name__ == "__main__":

@@ -130,7 +130,7 @@ class WebSocketManager:
             logger.debug(f"[WS] Алерт отправлен пользователю {user_id}")
             return True
         except Exception as exc:
-            logger.error(f"[WS] Ошибка отправки пользователю {user_id}: {exc}")
+            logger.exception(f"[WS] Ошибка отправки пользователю {user_id}: {exc}")
             async with self._lock:
                 self._connections.pop(user_id, None)
             return False

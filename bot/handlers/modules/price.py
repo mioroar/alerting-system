@@ -44,6 +44,8 @@ async def price_handler(message: Message) -> None:
             f"Вы подписаны на условие: изменение цены {direction} {percent}% за {interval} сек."
         )
     except Exception as e:
+        from config import logger
+        logger.exception(f"Price handler error: {e}")
         await message.answer(f"Ошибка: {e}\nПример: /price > 5 60")
 
 
@@ -92,6 +94,8 @@ async def unsubscribe_from_price_listener_handler(message: Message) -> None:
         await price_listener_manager.remove_listener(condition_id)
         await message.answer(f"Вы отписаны от условия цены: {condition_id}")
     except Exception as e:
+        from config import logger
+        logger.exception(f"Price unsubscribe error: {e}")
         await message.answer(f"Ошибка: {e}\nПример: /unsubscribe_from_price_listener 1234567890")
 
 

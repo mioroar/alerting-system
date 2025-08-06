@@ -63,7 +63,7 @@ async def websocket_alerts_endpoint(websocket: WebSocket, user_id: int) -> None:
             except WebSocketDisconnect:
                 break
             except Exception as exc:
-                logger.error(f"[WS] Ошибка обработки сообщения от {user_id}: {exc}")
+                logger.exception(f"[WS] Ошибка обработки сообщения от {user_id}: {exc}")
                 await websocket.send_text(json.dumps({
                     "type": "error",
                     "message": "Внутренняя ошибка сервера",
@@ -73,7 +73,7 @@ async def websocket_alerts_endpoint(websocket: WebSocket, user_id: int) -> None:
     except WebSocketDisconnect:
         logger.info(f"[WS] Пользователь {user_id} отключился")
     except Exception as exc:
-        logger.error(f"[WS] Критическая ошибка для пользователя {user_id}: {exc}")
+        logger.exception(f"[WS] Критическая ошибка для пользователя {user_id}: {exc}")
     finally:
         await WebSocketManager.instance().disconnect(user_id)
 

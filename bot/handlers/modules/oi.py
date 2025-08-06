@@ -36,6 +36,8 @@ async def oi_handler(message: Message) -> None:
             f"Вы подписаны: OI {direction_txt} медианы на {percent:.1f}%."
         )
     except Exception as exc:
+        from config import logger
+        logger.exception(f"OI handler error: {exc}")
         await message.answer(f"Ошибка: {exc}\nПример: /oi > 200")
 
 
@@ -73,6 +75,8 @@ async def unsubscribe_from_oi_listener_handler(message: Message) -> None:
         await oi_manager.remove_listener(condition_id)
         await message.answer(f"Отписка выполнена: {condition_id}")
     except Exception as exc:
+        from config import logger
+        logger.exception(f"OI unsubscribe error: {exc}")
         await message.answer(
             f"Ошибка: {exc}\nПример: /unsubscribe_from_oi_listener 1234567890"
         )

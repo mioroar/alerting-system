@@ -46,6 +46,8 @@ async def volume_amount_handler(message: Message) -> None:
             f"Вы подписаны на условие: объём {direction_text} {percent:,.0f} USD за {interval} сек."
         )
     except Exception as e:
+        from config import logger
+        logger.exception(f"Volume amount handler error: {e}")
         await message.answer(f"Ошибка: {e}\nПример: /volume_amount >10000000 300")
 
 
@@ -95,6 +97,8 @@ async def unsubscribe_from_volume_amount_listener_handler(message: Message) -> N
         await volume_amount_manager.remove_listener(condition_id)
         await message.answer(f"Вы отписаны от условия абсолютного объёма: {condition_id}")
     except Exception as e:
+        from config import logger
+        logger.exception(f"Volume amount unsubscribe error: {e}")
         await message.answer(f"Ошибка: {e}\nПример: /unsubscribe_from_volume_amount_listener 1234567890")
 
 

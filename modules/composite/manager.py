@@ -139,7 +139,7 @@ class CompositeListenerManager:
         try:
             await listener.stop()
         except Exception as exc:
-            logger.error(f"[COMPOSITE] Ошибка при остановке композитного слушателя: {exc}")
+            logger.exception(f"[COMPOSITE] Ошибка при остановке композитного слушателя: {exc}")
         
         del self._listeners[condition_id]
         logger.info(f"[COMPOSITE] Слушатель {condition_id} удалён")
@@ -248,7 +248,7 @@ class CompositeListenerManager:
                 logger.debug(f"[TICK] {listener_id}")
                 await listener.maybe_update()
             except Exception as exc:
-                logger.error(f"[ERROR] {listener_id}: {exc!r}")
+                logger.exception(f"[ERROR] {listener_id}: {exc!r}")
 
     async def tick(self) -> None:
         """Обрабатывает алерты пакетами с динамическим размером.

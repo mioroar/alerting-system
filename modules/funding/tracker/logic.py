@@ -30,16 +30,16 @@ async def fetch_funding_info() -> List[FundingInfo]:
             resp.raise_for_status()
             raw = resp.json()
     except httpx.TimeoutException as e:
-        logger.error("Binance API timeout: %s", e)
+        logger.exception("Binance API timeout: %s", e)
         raise
     except httpx.HTTPStatusError as e:
-        logger.error("Binance API HTTP error %s: %s", e.response.status_code, e.response.text)
+        logger.exception("Binance API HTTP error %s: %s", e.response.status_code, e.response.text)
         raise
     except httpx.RequestError as e:
-        logger.error("Binance API request error: %s", e)
+        logger.exception("Binance API request error: %s", e)
         raise
     except Exception as e:
-        logger.error("Unexpected error fetching funding data: %s", e)
+        logger.exception("Unexpected error fetching funding data: %s", e)
         raise
 
     if not isinstance(raw, list):

@@ -106,7 +106,7 @@ class CompositeListener:
                     context[cond.module] = tickers
                     logger.debug(f"[CTX {cond.module:7}] {sorted(tickers)}")
                 except Exception as exc:
-                    logger.error(f"[CTX ERROR {cond.module}] {exc}")
+                    logger.exception(f"[CTX ERROR {cond.module}] {exc}")
                     context[cond.module] = set()
 
             triggered: Set[str] = self._plan(context)
@@ -129,7 +129,7 @@ class CompositeListener:
                 await self._send_websocket_notifications()
 
         except Exception as exc:
-            logger.error(f"[UPDATE ERROR] {self.id}: {exc}")
+            logger.exception(f"[UPDATE ERROR] {self.id}: {exc}")
         finally:
             self._next_check = now + dt.timedelta(seconds=self._period)
 
@@ -188,7 +188,7 @@ class CompositeListener:
             try:
                 await leaf_listener.stop()
             except Exception as exc:
-                logger.error(f"[COMPOSITE] Ошибка при остановке дочернего слушателя: {exc}")
+                logger.exception(f"[COMPOSITE] Ошибка при остановке дочернего слушателя: {exc}")
         
         self._leaf_listeners.clear()
         self.subscribers.clear()

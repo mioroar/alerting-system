@@ -98,6 +98,8 @@ async def create_alert(request: AlertRequest):
         )
         
     except Exception as exc:
+        from config import logger
+        logger.exception(f"Error creating alert: {exc}")
         raise HTTPException(
             status_code=400, 
             detail=f"Ошибка создания алерта: {str(exc)}"
