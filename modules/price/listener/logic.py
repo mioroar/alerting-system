@@ -24,6 +24,7 @@ class PriceListener(Listener):
                         p.price AS current_price,
                         p.ts     AS current_ts
                     FROM price AS p
+                    WHERE p.ts >= now() - ($1 + 60) * interval '1 second'
                     ORDER BY p.symbol, p.ts DESC
                 ),
                 past AS (
@@ -31,15 +32,14 @@ class PriceListener(Listener):
                         pr.symbol,
                         pr.price AS past_price
                     FROM price AS pr
-                    JOIN latest AS l ON l.symbol = pr.symbol
-                    WHERE pr.ts <= l.current_ts - $1 * INTERVAL '1 second'
+                    JOIN latest AS l USING (symbol)
+                    WHERE pr.ts <= l.current_ts - $1 * interval '1 second'
+                    AND pr.ts >= l.current_ts - ($1 + 60) * interval '1 second'
                     ORDER BY pr.symbol, pr.ts DESC
                 )
-                SELECT l.symbol,
-                    l.current_price,
-                    p.past_price
-                FROM latest AS l
-                JOIN past AS p ON p.symbol = l.symbol;
+                SELECT l.symbol, l.current_price, p.past_price
+                FROM   latest AS l
+                JOIN   past   AS p USING (symbol);
                 """,
                 self.interval,
             )

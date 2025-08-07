@@ -86,6 +86,17 @@ async def init_db() -> None:
         except Exception as e:
             logger.warning(f"Failed to create price hypertable: {e}")
 
+        try:
+            await conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS price_symbol_ts_desc_idx
+                    ON price (symbol, ts DESC) INCLUDE (price);
+                """
+            )
+            logger.info("Price index created successfully")
+        except Exception as e:
+            logger.warning(f"Failed to create price index: {e}")
+
         # Создание hypertable для volume
         try:
             await conn.execute(
