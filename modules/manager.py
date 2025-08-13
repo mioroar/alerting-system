@@ -121,8 +121,16 @@ class BaseListenerManager(Generic[WhatListener]):
         """Фоновая корутина: update_state → notify с интервалом listener.interval."""
         while True:
             try:
+                # Проверяем, не закрыт ли пул перед использованием
+                if db_pool.is_closing():
+                    logger.info("Остановка слушателя %s: пул соединений закрывается", listener.condition_id)
+                    break
+                    
                 await listener.update_state(db_pool)
                 await listener.notify()
+            except asyncio.CancelledError:
+                logger.info("Слушатель %s отменён", listener.condition_id)
+                break
             except Exception as exc:
                 logger.exception("Listener %s error: %s", listener.condition_id, exc)
             finally:

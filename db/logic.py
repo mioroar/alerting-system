@@ -62,6 +62,18 @@ async def get_pool() -> asyncpg.Pool:
     return _POOL
 
 
+async def close_pool() -> None:
+    """Корректно закрывает пул соединений с базой данных.
+    
+    Должна вызываться при завершении работы приложения для предотвращения
+    ошибок "pool is closed" в фоновых задачах.
+    """
+    global _POOL
+    if _POOL is not None:
+        await _POOL.close()
+        _POOL = None
+
+
 async def upsert_prices(prices: Sequence[PriceInfo]) -> None:
     """Вставляет/обновляет ценовые тикеты пачкой ``executemany``.
 

@@ -16,6 +16,7 @@ from modules.oi.oi import main as oi_main
 from modules.funding.funding import main as funding_main
 from bot.handlers.modules.composite import composite_loop
 from db.init_db import init_db
+from db.logic import close_pool
 
 
 @asynccontextmanager
@@ -25,11 +26,16 @@ async def lifespan(app: FastAPI):
     await init_db()
     yield
     
+    # Корректное завершение: сначала отменяем фоновые задачи
     background_task.cancel()
     try:
         await background_task
     except asyncio.CancelledError:
         pass
+    
+    # Затем закрываем пул соединений с БД
+    await close_pool()
+    logger.info("Пул соединений с БД корректно закрыт")
 
 app = FastAPI(
     title="Alerts API", 
