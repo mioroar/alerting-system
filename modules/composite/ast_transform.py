@@ -54,13 +54,13 @@ Expr = Union[Condition, And, Or, Cooldown]
 
 
 #: Допустимое количество числовых аргументов для каждого модуля.
-#: Строка → кортеж вариантов (1,) — ровно одно число; (1, 2) — одно ИЛИ два.
+#: Строка → кортеж вариантов (1,) — ровно одно число; (1, 2) — одно ИЛИ два; (2, 3) — два или три.
 _PARAM_SPEC: Final[dict[str, tuple[int, ...]]] = {
     "oi":            (1,),
-    "funding":       (2,),
-    "price":         (2,),
-    "volume":        (2,),
-    "volume_change": (2,),
+    "funding":       (2, 3),
+    "price":         (2, 3),
+    "volume":        (2, 3),
+    "volume_change": (2, 3),
 #    "spread":        (2,),
 }
 
@@ -90,6 +90,10 @@ class AlertTransformer(Transformer):
             float: Число с плавающей точкой.
         """
         return float(tok)
+    
+    @v_args(inline=True)
+    def param_tail(self, *nums: float) -> list[float]:
+        return list(nums)
 
     @v_args(inline=True)
     def condition(
@@ -97,7 +101,7 @@ class AlertTransformer(Transformer):
         module_tok: Token,
         op_tok: Token,
         first: float,
-        *rest: Sequence[float],
+        *rest,
     ) -> Condition:
         """Строит Condition и проверяет число параметров.
 
@@ -114,7 +118,11 @@ class AlertTransformer(Transformer):
             ValueError: Если модуль неизвестен или количество параметров некорректно.
         """
         module = module_tok.value
-        params = [first, *rest]
+
+        if rest and isinstance(rest[0], list):
+            params = [ first, *rest[0] ]
+        else:
+            params = [ first ]
 
         allowed = _PARAM_SPEC.get(module)
         if allowed is None:

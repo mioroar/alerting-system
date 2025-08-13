@@ -38,7 +38,10 @@ class VolumeAmountListener(Listener):
             return
         for symbol, cur_vol in self.matched:
             direction = "превысил" if self.direction == ">" else "опустился ниже"
-            text = (f"Объём {symbol} за {self.interval}с {direction} {int(self.percent):,.0f} USD\nФактический объём: {int(cur_vol):,.0f} USD")
+            text = (
+                f"Объём {symbol} за {self.window_sec} с {direction} "
+                f"{int(self.percent):,} USD\nФактический объём: {int(cur_vol):,} USD"
+            )
             await self.notify_subscribers(text)
 
     async def _fetch_current_volumes(self, db_pool: asyncpg.Pool) -> list[asyncpg.Record]:
@@ -72,7 +75,7 @@ class VolumeAmountListener(Listener):
                 SELECT symbol, cur_vol
                 FROM cur;
                 """,
-                self.interval,
+                self.window_sec,
             )
 
     def _trigger(self, value: float) -> bool:

@@ -42,6 +42,8 @@ class BaseListenerManager(Generic[WhatListener]):
         
         if "interval" in params:
             key_fields.append(("interval", params["interval"]))
+        if "window_sec" in params:
+            key_fields.append(("window_sec", params["window_sec"]))
         
         return str(hash(tuple(key_fields)))
 
@@ -59,6 +61,7 @@ class BaseListenerManager(Generic[WhatListener]):
         Args:
             params: Словарь параметров, специфичный для модуля.
                 Обязательные ключи: "direction", "percent", "interval".
+                опционально: window_sec (int) — длина окна в секундах
             user_id: Telegram ID подписчика или None.
 
         Returns:
@@ -72,6 +75,7 @@ class BaseListenerManager(Generic[WhatListener]):
                 direction=params["direction"],
                 percent=params["percent"],
                 interval=params["interval"],
+                window_sec=int(params.get("window_sec", params["interval"])),
             )
             self._listeners[cid] = listener
 
@@ -80,7 +84,6 @@ class BaseListenerManager(Generic[WhatListener]):
                 self._run_listener_periodically(listener, db_pool)
             )
 
-        # подписываем только реального пользователя
         if user_id is not None:
             self._listeners[cid].add_subscriber(user_id)
 

@@ -445,9 +445,24 @@ async def get_demo_page() -> HTMLResponse:
             box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
         }
         
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+        }
+        
+        .btn-secondary:hover {
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            margin: 2px;
+            width: auto;
+        }
+        
         .alerts-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
             gap: 20px;
             max-height: 70vh;
             overflow-y: auto;
@@ -532,6 +547,95 @@ async def get_demo_page() -> HTMLResponse:
             margin: 0;
         }
         
+        .blacklist-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .blacklist-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .blacklist-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .blacklist-count {
+            font-size: 11px;
+            color: #999;
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 8px;
+        }
+        
+        .blacklist-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+            min-height: 20px;
+        }
+        
+        .blacklist-tag {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .blacklist-tag .remove-btn {
+            cursor: pointer;
+            font-weight: bold;
+            opacity: 0.7;
+        }
+        
+        .blacklist-tag .remove-btn:hover {
+            opacity: 1;
+        }
+        
+        .blacklist-input-row {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .blacklist-input {
+            flex: 1;
+            padding: 6px 8px;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        
+        .add-blacklist-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: #6c757d;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            width: auto;
+            margin: 0;
+        }
+        
+        .add-blacklist-btn:hover {
+            background: #5a6268;
+            transform: none;
+            box-shadow: none;
+        }
+        
         .triggered-alert {
             background: white;
             border-radius: 12px;
@@ -540,6 +644,11 @@ async def get_demo_page() -> HTMLResponse:
             border-left: 4px solid #ff4444;
             box-shadow: 0 4px 20px rgba(255, 68, 68, 0.2);
             animation: newAlert 0.5s ease-out;
+        }
+        
+        .triggered-alert.filtered {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border-left-color: #ffc107;
         }
         
         @keyframes newAlert {
@@ -579,6 +688,20 @@ async def get_demo_page() -> HTMLResponse:
             border-radius: 12px;
             font-size: 11px;
             font-weight: 600;
+        }
+        
+        .ticker-badge.filtered {
+            background: linear-gradient(135deg, #ffc107, #e0a800);
+            color: #000;
+        }
+        
+        .filtered-info {
+            font-size: 11px;
+            color: #856404;
+            background: rgba(255, 193, 7, 0.1);
+            padding: 5px 8px;
+            border-radius: 4px;
+            margin-top: 8px;
         }
         
         .examples {
@@ -693,16 +816,17 @@ async def get_demo_page() -> HTMLResponse:
                 <h3>📝 Создать алерт</h3>
                 <div class="form-group">
                     <label>Выражение:</label>
-                    <input type="text" id="alertExpression" placeholder="price > 5 300" />
+                    <input type="text" id="alertExpression" placeholder="price > 5 300 60" />
                 </div>
                 <button onclick="createAlert()" class="btn-success">Создать</button>
                 
                 <div class="examples">
-                    <strong>Примеры:</strong><br>
-                    • <code>price > 5 300</code><br>
-                    • <code>price > 5 300 & volume > 1000000 60</code><br>
-                    • <code>price > 5 300 & volume > 1000000 60 | oi > 200</code><br>
-                    • <code>price > 5 300 & volume > 1000000 60 | oi > 200 @3600</code>
+                      <strong>Примеры:</strong><br>
+                        • <code>price > 5 300 60</code> — окно 300с, опрос каждые 60с<br>
+                        • <code>volume > 1000000 10800 60</code> — объём за 3ч, опрос каждую минуту<br>
+                        • <code>price > 5 300 60 & volume > 1000000 60</code><br>
+                        • <code>volume_change > 50 1800 60</code><br>
+                        • <code>price > 5 300 60 | oi > 200</code><br>
                 </div>
             </div>
             
@@ -786,6 +910,32 @@ async def get_demo_page() -> HTMLResponse:
         let myAlerts = [];
         let triggeredToday = 0;
         let connectedUsers = 0;
+        let alertBlacklists = {}; // alertId -> Set of blacklisted tickers
+
+        // Load blacklists from localStorage
+        function loadBlacklists() {
+            const saved = localStorage.getItem('alertBlacklists');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    alertBlacklists = {};
+                    for (const [alertId, tickers] of Object.entries(parsed)) {
+                        alertBlacklists[alertId] = new Set(tickers);
+                    }
+                } catch (e) {
+                    alertBlacklists = {};
+                }
+            }
+        }
+
+        // Save blacklists to localStorage
+        function saveBlacklists() {
+            const toSave = {};
+            for (const [alertId, tickerSet] of Object.entries(alertBlacklists)) {
+                toSave[alertId] = Array.from(tickerSet);
+            }
+            localStorage.setItem('alertBlacklists', JSON.stringify(toSave));
+        }
 
         // WebSocket Management
         function connect() {
@@ -878,23 +1028,52 @@ async def get_demo_page() -> HTMLResponse:
         }
 
         function handleAlertTriggered(data) {
-            // Add to triggered alerts
-            addTriggeredAlert(data);
+            // Filter tickers based on blacklist
+            const filteredData = filterAlertByBlacklist(data);
             
-            // Highlight the triggered alert card
-            highlightAlertCard(data.alert_id);
-            
-            // Update counter
-            triggeredToday++;
-            updateTriggeredCount();
-            
-            // Show browser notification
-            if (Notification.permission === 'granted') {
-                new Notification('🚨 Алерт сработал!', {
-                    body: `${data.tickers?.join(', ')}: ${data.readable_expression}`,
-                    icon: '🚨'
-                });
+            // Only show alert if there are tickers left after filtering
+            if (filteredData.tickers && filteredData.tickers.length > 0) {
+                // Add to triggered alerts
+                addTriggeredAlert(filteredData);
+                
+                // Highlight the triggered alert card
+                highlightAlertCard(data.alert_id);
+                
+                // Update counter
+                triggeredToday++;
+                updateTriggeredCount();
+                
+                // Show browser notification
+                if (Notification.permission === 'granted') {
+                    new Notification('🚨 Алерт сработал!', {
+                        body: `${filteredData.tickers.join(', ')}: ${data.readable_expression}`,
+                        icon: '🚨'
+                    });
+                }
+            } else {
+                // All tickers were filtered out
+                console.log('Alert filtered out completely:', data.alert_id);
+                addFilteredAlert(data);
             }
+        }
+
+        function filterAlertByBlacklist(alertData) {
+            const alertId = alertData.alert_id;
+            const blacklist = alertBlacklists[alertId] || new Set();
+            
+            if (!alertData.tickers || blacklist.size === 0) {
+                return alertData;
+            }
+
+            const filteredTickers = alertData.tickers.filter(ticker => !blacklist.has(ticker));
+            
+            return {
+                ...alertData,
+                tickers: filteredTickers,
+                filtered: filteredTickers.length !== alertData.tickers.length,
+                originalTickers: alertData.tickers,
+                filteredOutTickers: alertData.tickers.filter(ticker => blacklist.has(ticker))
+            };
         }
 
         function addTriggeredAlert(data) {
@@ -907,7 +1086,8 @@ async def get_demo_page() -> HTMLResponse:
             
             const alertEl = document.createElement('div');
             alertEl.className = 'triggered-alert';
-            alertEl.innerHTML = `
+            
+            let content = `
                 <div class="triggered-header">
                     <strong>🚨 АЛЕРТ СРАБОТАЛ!</strong>
                     <div class="triggered-time">${new Date(data.timestamp).toLocaleTimeString()}</div>
@@ -915,6 +1095,52 @@ async def get_demo_page() -> HTMLResponse:
                 <div class="alert-expression">${data.readable_expression}</div>
                 <div class="triggered-tickers">
                     ${data.tickers?.map(ticker => `<span class="ticker-badge">${ticker}</span>`).join('') || ''}
+                </div>
+            `;
+
+            if (data.filtered) {
+                content += `
+                    <div class="filtered-info">
+                        ℹ️ Отфильтровано: ${data.filteredOutTickers.join(', ')} (в блеклисте)
+                    </div>
+                `;
+            }
+
+            content += `<div style="font-size: 12px; color: #666;">ID: ${data.alert_id}</div>`;
+            
+            alertEl.innerHTML = content;
+            
+            // Insert at the beginning
+            container.insertBefore(alertEl, container.firstChild);
+            
+            // Remove old alerts (keep only last 10)
+            const alerts = container.querySelectorAll('.triggered-alert');
+            if (alerts.length > 10) {
+                alerts[alerts.length - 1].remove();
+            }
+        }
+
+        function addFilteredAlert(data) {
+            const container = document.getElementById('triggeredAlerts');
+            
+            // Remove "no alerts" message if present
+            if (container.querySelector('.no-alerts')) {
+                container.innerHTML = '';
+            }
+            
+            const alertEl = document.createElement('div');
+            alertEl.className = 'triggered-alert filtered';
+            alertEl.innerHTML = `
+                <div class="triggered-header">
+                    <strong>⚠️ АЛЕРТ ОТФИЛЬТРОВАН</strong>
+                    <div class="triggered-time">${new Date(data.timestamp).toLocaleTimeString()}</div>
+                </div>
+                <div class="alert-expression">${data.readable_expression}</div>
+                <div class="triggered-tickers">
+                    ${data.tickers?.map(ticker => `<span class="ticker-badge filtered">${ticker}</span>`).join('') || ''}
+                </div>
+                <div class="filtered-info">
+                    🚫 Все тикеры (${data.tickers?.length || 0}) находятся в блеклисте для этого алерта
                 </div>
                 <div style="font-size: 12px; color: #666;">ID: ${data.alert_id}</div>
             `;
@@ -939,6 +1165,60 @@ async def get_demo_page() -> HTMLResponse:
                     }, 3000);
                 }
             });
+        }
+
+        // Blacklist Management
+        function addToBlacklist(alertId, ticker) {
+            ticker = ticker.trim().toUpperCase();
+            if (!ticker) return;
+
+            if (!alertBlacklists[alertId]) {
+                alertBlacklists[alertId] = new Set();
+            }
+            
+            alertBlacklists[alertId].add(ticker);
+            saveBlacklists();
+            updateBlacklistDisplay(alertId);
+            showSystemMessage(`Тикер ${ticker} добавлен в блеклист`, 'info');
+        }
+
+        function removeFromBlacklist(alertId, ticker) {
+            if (alertBlacklists[alertId]) {
+                alertBlacklists[alertId].delete(ticker);
+                if (alertBlacklists[alertId].size === 0) {
+                    delete alertBlacklists[alertId];
+                }
+                saveBlacklists();
+                updateBlacklistDisplay(alertId);
+                showSystemMessage(`Тикер ${ticker} удален из блеклиста`, 'info');
+            }
+        }
+
+        function updateBlacklistDisplay(alertId) {
+            const card = document.querySelector(`[data-alert-id="${alertId}"]`);
+            if (!card) return;
+
+            const blacklistTags = card.querySelector('.blacklist-tags');
+            const blacklistCount = card.querySelector('.blacklist-count');
+            
+            if (!blacklistTags || !blacklistCount) return;
+
+            const blacklist = alertBlacklists[alertId] || new Set();
+            
+            // Update count
+            blacklistCount.textContent = blacklist.size > 0 ? `${blacklist.size} тикеров` : 'пусто';
+            
+            // Update tags
+            if (blacklist.size === 0) {
+                blacklistTags.innerHTML = '<span style="color: #999; font-size: 11px;">Нет заблокированных тикеров</span>';
+            } else {
+                blacklistTags.innerHTML = Array.from(blacklist).map(ticker => `
+                    <span class="blacklist-tag">
+                        ${ticker}
+                        <span class="remove-btn" onclick="removeFromBlacklist('${alertId}', '${ticker}')">&times;</span>
+                    </span>
+                `).join('');
+            }
         }
 
         // Alert Management
@@ -1003,19 +1283,27 @@ async def get_demo_page() -> HTMLResponse:
                 return;
             }
 
-            const alertsHtml = alerts.map(alert => `
-                <div class="alert-card" style="margin-bottom: 10px; padding: 15px;">
-                    <div class="alert-id">${alert.alert_id}</div>
-                    <div class="alert-expression">${alert.expression}</div>
-                    <div class="alert-stats">
-                        <span>Подписчиков: ${alert.subscribers_count}</span>
-                        <span>${alert.is_websocket_connected ? '🟢' : '🔴'}</span>
+            const alertsHtml = alerts.map(alert => {
+                const blacklist = alertBlacklists[alert.alert_id] || new Set();
+                return `
+                    <div class="alert-card" style="margin-bottom: 10px; padding: 15px;">
+                        <div class="alert-id">${alert.alert_id}</div>
+                        <div class="alert-expression">${alert.expression}</div>
+                        <div class="alert-stats">
+                            <span>Подписчиков: ${alert.subscribers_count}</span>
+                            <span>${alert.is_websocket_connected ? '🟢' : '🔴'}</span>
+                        </div>
+                        ${blacklist.size > 0 ? `
+                            <div style="font-size: 11px; color: #666; margin: 5px 0;">
+                                🚫 Блеклист: ${Array.from(blacklist).join(', ')}
+                            </div>
+                        ` : ''}
+                        <button onclick="deleteAlert('${alert.alert_id}')" class="btn-danger" style="width: 100%; margin-top: 10px;">
+                            Удалить
+                        </button>
                     </div>
-                    <button onclick="deleteAlert('${alert.alert_id}')" class="btn-danger" style="width: 100%; margin-top: 10px;">
-                        Удалить
-                    </button>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             container.innerHTML = alertsHtml;
         }
@@ -1028,26 +1316,71 @@ async def get_demo_page() -> HTMLResponse:
                 return;
             }
 
-            const alertsHtml = alerts.map(alert => `
-                <div class="alert-card" data-alert-id="${alert.alert_id}">
-                    <div class="alert-header">
-                        <h4>Алерт</h4>
-                        <div class="alert-id">${alert.alert_id}</div>
+            const alertsHtml = alerts.map(alert => {
+                const blacklist = alertBlacklists[alert.alert_id] || new Set();
+                return `
+                    <div class="alert-card" data-alert-id="${alert.alert_id}">
+                        <div class="alert-header">
+                            <h4>Алерт</h4>
+                            <div class="alert-id">${alert.alert_id}</div>
+                        </div>
+                        <div class="alert-expression">${alert.expression}</div>
+                        <div class="alert-stats">
+                            <span>👥 ${alert.subscribers_count}</span>
+                            <span>${alert.is_websocket_connected ? '🟢 Подключен' : '🔴 Отключен'}</span>
+                        </div>
+                        
+                        <div class="blacklist-section">
+                            <div class="blacklist-header">
+                                <span class="blacklist-title">🚫 Блеклист тикеров</span>
+                                <span class="blacklist-count">${blacklist.size > 0 ? `${blacklist.size} тикеров` : 'пусто'}</span>
+                            </div>
+                            <div class="blacklist-tags">
+                                ${blacklist.size === 0 ? 
+                                    '<span style="color: #999; font-size: 11px;">Нет заблокированных тикеров</span>' :
+                                    Array.from(blacklist).map(ticker => `
+                                        <span class="blacklist-tag">
+                                            ${ticker}
+                                            <span class="remove-btn" onclick="removeFromBlacklist('${alert.alert_id}', '${ticker}')">&times;</span>
+                                        </span>
+                                    `).join('')
+                                }
+                            </div>
+                            <div class="blacklist-input-row">
+                                <input type="text" class="blacklist-input" placeholder="BTC" onkeypress="handleBlacklistKeypress(event, '${alert.alert_id}')">
+                                <button class="add-blacklist-btn" onclick="addTickerToBlacklist('${alert.alert_id}')">+</button>
+                            </div>
+                        </div>
+                        
+                        <div class="alert-actions">
+                            <button onclick="deleteAlert('${alert.alert_id}')" class="btn-danger">
+                                🗑️ Удалить
+                            </button>
+                        </div>
                     </div>
-                    <div class="alert-expression">${alert.expression}</div>
-                    <div class="alert-stats">
-                        <span>👥 ${alert.subscribers_count}</span>
-                        <span>${alert.is_websocket_connected ? '🟢 Подключен' : '🔴 Отключен'}</span>
-                    </div>
-                    <div class="alert-actions">
-                        <button onclick="deleteAlert('${alert.alert_id}')" class="btn-danger">
-                            🗑️ Удалить
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             container.innerHTML = alertsHtml;
+        }
+
+        function handleBlacklistKeypress(event, alertId) {
+            if (event.key === 'Enter') {
+                addTickerToBlacklist(alertId);
+            }
+        }
+
+        function addTickerToBlacklist(alertId) {
+            const card = document.querySelector(`[data-alert-id="${alertId}"]`);
+            if (!card) return;
+
+            const input = card.querySelector('.blacklist-input');
+            const ticker = input.value.trim().toUpperCase();
+            
+            if (ticker) {
+                addToBlacklist(alertId, ticker);
+                input.value = '';
+            }
         }
 
         async function deleteAlert(alertId) {
@@ -1062,6 +1395,9 @@ async def get_demo_page() -> HTMLResponse:
                 
                 if (response.ok) {
                     showSystemMessage('Алерт удален: ' + alertId, 'success');
+                    // Clean up blacklist
+                    delete alertBlacklists[alertId];
+                    saveBlacklists();
                     loadMyAlerts();
                 } else {
                     showSystemMessage('Ошибка: ' + result.detail, 'error');
@@ -1087,6 +1423,9 @@ async def get_demo_page() -> HTMLResponse:
                 
                 if (response.ok) {
                     showSystemMessage(`Удалено алертов: ${result.removed_count}`, 'success');
+                    // Clean up all blacklists for this user
+                    alertBlacklists = {};
+                    saveBlacklists();
                     loadMyAlerts();
                 } else {
                     showSystemMessage('Ошибка: ' + result.detail, 'error');
@@ -1171,6 +1510,7 @@ async def get_demo_page() -> HTMLResponse:
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
+            loadBlacklists();
             updateTriggeredCount();
             document.getElementById('connectedUsers').textContent = connectedUsers;
         });

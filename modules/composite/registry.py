@@ -42,12 +42,16 @@ async def create_listener(cond: Condition, uid: int) -> Listener:
 
 async def _price_factory(cond: Condition, _) -> Listener:
     """price >|< percent interval → PriceListener"""
+    percent = float(cond.params[0])
+    window  = int(cond.params[1])
+    poll    = int(cond.params[2]) if len(cond.params) >= 3 else window
     manager = await get_price_listener_manager()
     listener = await manager.add_listener(
         {
             "direction": cond.op,
-            "percent":  cond.params[0],
-            "interval": int(cond.params[1]),
+            "percent":  percent,
+            "interval": poll,
+            "window_sec": window,
         },
         user_id=None,
     )
@@ -82,12 +86,16 @@ async def _funding_factory(cond: Condition, _) -> Listener:
 
 async def _volume_factory(cond: Condition, _) -> Listener:
     """volume >|< amount_usd interval_sec → VolumeAmountListener"""
+    amount = float(cond.params[0])
+    window = int(cond.params[1])
+    poll = int(cond.params[2]) if len(cond.params) == 3 else window
     manager = await get_volume_amount_listener_manager()
     listener = await manager.add_listener(
         {
             "direction": cond.op,
-            "percent": cond.params[0],
-            "interval": int(cond.params[1]),
+            "percent": amount,
+            "interval": poll,
+            "window_sec": window,
         },
         user_id=None,
     )
@@ -96,12 +104,16 @@ async def _volume_factory(cond: Condition, _) -> Listener:
 
 async def _volume_change_factory(cond: Condition, _) -> Listener:
     """volume_change >|< percent interval_sec → VolumeChangeListener"""
+    percent = float(cond.params[0])
+    window  = int(cond.params[1])
+    poll    = int(cond.params[2]) if len(cond.params) >= 3 else window
     manager = await get_volume_change_listener_manager()
     listener = await manager.add_listener(
         {
             "direction": cond.op,
-            "percent":  cond.params[0],
-            "interval": int(cond.params[1]),
+            "percent":  percent,
+            "interval": poll,
+            "window_sec": window,
         },
         user_id=None,
     )

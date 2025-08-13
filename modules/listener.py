@@ -9,14 +9,16 @@ class Listener:
         direction (str): Направление изменения ('>' или '<').
         percent (float): Процент изменения цены (например, 5.0).
         interval (int): Интервал в секундах (например, 60).
+        window_sec (int | None): Длина окна расчёта, сек. Если не задано - считается равным `interval` (поведение как раньше)
         matched (list[tuple[str, float]]): Список подходящих тикеров.
         subscribers (List[int]): Список Telegram‑ID пользователей, подписанных на это условие.
     """
-    def __init__(self, condition_id: str, direction: str, percent: float, interval: int) -> None:
+    def __init__(self, condition_id: str, direction: str, percent: float, interval: int, window_sec: int | None = None) -> None:
         self.condition_id = condition_id
         self.direction = direction
         self.percent = percent
         self.interval = interval
+        self.window_sec: int = window_sec if window_sec is not None else interval
         self.matched: list[tuple[str, float]] = []
         self.subscribers: List[int] = []
 

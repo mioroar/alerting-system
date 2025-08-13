@@ -8,7 +8,7 @@ class VolumeChangeListener(Listener):
     и уведомляет подписчиков при превышении заданного порога изменения.
     """
     @property
-    def period_sec(self) -> int:      # ← новое
+    def period_sec(self) -> int:
         return self.interval
 
     async def update_state(self, db_pool: asyncpg.Pool) -> None:
@@ -53,7 +53,7 @@ class VolumeChangeListener(Listener):
                 FROM cur c
                 JOIN prev p USING (symbol);
                 """,
-                self.interval,
+                self.window_sec,
             )
 
         for row in rows:
@@ -69,7 +69,7 @@ class VolumeChangeListener(Listener):
             return
         for symbol, change in self.matched:
             direction = "вырос" if change > 0 else "упал"
-            text = (f"Объём {symbol} {direction} на {abs(change):.2f} % за {self.interval}с")
+            text = (f"Объём {symbol} {direction} на {abs(change):.2f} % за {self.window_sec}с")
             await self.notify_subscribers(text)
 
     def _trigger(self, change: float) -> bool:

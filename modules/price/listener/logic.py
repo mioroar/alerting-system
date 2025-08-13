@@ -41,7 +41,7 @@ class PriceListener(Listener):
                 FROM   latest AS l
                 JOIN   past   AS p USING (symbol);
                 """,
-                self.interval,
+                self.window_sec,
             )
         if not rows:
             return
@@ -58,7 +58,7 @@ class PriceListener(Listener):
         for symbol, change in self.matched:
             direction = "выросла" if change > 0 else "упала"
             text = (f"Цена {symbol} {direction} на {abs(change):.2f}% "
-                    f"за {self.interval} сек.")
+                    f"за {self.window_sec} сек.")
             await self.notify_subscribers(text)
 
     def _trigger(self, current: float, past: float) -> bool:
