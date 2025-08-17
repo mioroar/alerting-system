@@ -59,6 +59,7 @@ async def init_db() -> None:
         );
         """
         )
+            logger.info("Open interest table created successfully")
         except Exception as e:
             logger.warning(f"Failed to create open_interest table: {e}")
 
@@ -76,6 +77,32 @@ async def init_db() -> None:
             logger.info("Funding_rate table created successfully")
         except Exception as e:
             logger.warning(f"Failed to create funding_rate table: {e}")
+
+        try:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS order_density (
+                    ts                    TIMESTAMPTZ    NOT NULL,
+                    symbol                TEXT           NOT NULL,
+                    order_type            TEXT           NOT NULL,
+                    price                 NUMERIC(18,8)  NOT NULL,
+                    size_usd              NUMERIC(18,2)  NOT NULL,
+                    percent_from_market   NUMERIC(8,4)   NOT NULL,
+                    first_seen            TIMESTAMPTZ    NOT NULL,
+                    duration_sec          INTEGER        NOT NULL,
+                    CONSTRAINT order_density_pk PRIMARY KEY (ts, symbol, order_type, price)
+                );
+            """)
+            logger.info("Order_density table created successfully")
+        except Exception as e:
+            logger.warning(f"Failed to create order_density table: {e}")
+
+        try:
+            await conn.execute(
+                "SELECT create_hypertable('order_density', by_range('ts'), if_not_exists => TRUE);"
+            )
+            logger.info("Order_density hypertable created successfully")
+        except Exception as e:
+            logger.warning(f"Failed to create order_density hypertable: {e}")
 
         # Создание hypertable для price
         try:
@@ -122,7 +149,29 @@ async def init_db() -> None:
         except Exception as e:
             logger.warning(f"Failed to create funding_rate hypertable: {e}")
 
+        try:
+            await conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS order_density_symbol_ts_desc_idx
+                    ON order_density (symbol, ts DESC) 
+                    INCLUDE (size_usd, percent_from_market, duration_sec);
+                """
+            )
+            logger.info("Order_density symbol index created successfully")
+        except Exception as e:
+            logger.warning(f"Failed to create order_density symbol index: {e}")
 
+        try:
+            await conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS order_density_size_duration_idx
+                    ON order_density (size_usd, duration_sec)
+                    WHERE ts >= now() - interval '2 minutes' AND ABS(percent_from_market) <= 10;
+                """
+            )
+            logger.info("Order_density size/duration index created successfully")
+        except Exception as e:
+            logger.warning(f"Failed to create order_density size/duration index: {e}")
         # Добавление retention policy для price
         try:
             await conn.execute(
@@ -156,6 +205,14 @@ async def init_db() -> None:
             logger.info("Funding_rate retention policy added successfully")
         except Exception as e:
             logger.warning(f"Failed to add funding_rate retention policy: {e}")
+
+        try:
+            await conn.execute(
+                "SELECT add_retention_policy('order_density', INTERVAL '48 hours', if_not_exists => TRUE);"
+            )
+            logger.info("Order_density retention policy added successfully")
+        except Exception as e:
+            logger.warning(f"Failed to add order_density retention policy: {e}")
 
         logger.info("Database initialization completed")
     finally:
