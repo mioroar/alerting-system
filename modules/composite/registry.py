@@ -120,27 +120,27 @@ async def _volume_change_factory(cond: Condition, _) -> Listener:
     )
     return listener
 
-async def _order_factory(cond: Condition, _) -> Listener:
-    """order >|< size_usd percent duration_sec → OrderListener"""
-    size_usd = float(cond.params[0])
-    max_percent = float(cond.params[1]) 
-    min_duration = int(cond.params[2])
+# async def _order_factory(cond: Condition, _) -> Listener:
+#     """order >|< size_usd percent duration_sec → OrderListener"""
+#     size_usd = float(cond.params[0])
+#     max_percent = float(cond.params[1]) 
+#     min_duration = int(cond.params[2])
     
-    manager = await get_order_listener_manager()
+#     manager = await get_order_listener_manager()
     
-    # Создаем параметры для OrderListener
-    params = {
-        "direction": cond.op,
-        "size_usd": size_usd,
-        "max_percent": max_percent,
-        "min_duration": min_duration,
-        "interval": 60,  # Период проверки order-слушателя
-    }
+#     # Создаем параметры для OrderListener
+#     params = {
+#         "direction": cond.op,
+#         "size_usd": size_usd,
+#         "max_percent": max_percent,
+#         "min_duration": min_duration,
+#         "interval": 60,  # Период проверки order-слушателя
+#     }
     
-    # Создаем слушатель через менеджер
-    listener = await manager.add_listener(params, user_id=None)
+#     # Создаем слушатель через менеджер
+#     listener = await manager.add_listener(params, user_id=None)
     
-    return listener
+#     return listener
 
 
 # регистрируем при импорте модуля
@@ -149,4 +149,4 @@ register("oi",    _oi_factory)
 register("funding", _funding_factory)
 register("volume", _volume_factory)
 register("volume_change", _volume_change_factory)
-register("order", _order_factory)
+# register("order", _order_factory)
