@@ -20,6 +20,7 @@ class OIListener(Listener):
         direction: str,
         percent: float,
         interval: int | None = None,
+        window_sec: int | None = None,
     ) -> None:
         """Инициализирует слушатель OI.
 
@@ -28,8 +29,9 @@ class OIListener(Listener):
             direction: Направление сравнения ('>' или '<').
             percent: Процентное значение для срабатывания.
             interval: Интервал проверки в секундах (по умолчанию 60).
+            window_sec: Длина окна расчёта в секундах (не используется для OI, но требуется базовым классом).
         """
-        super().__init__(condition_id, direction, percent, interval or 60)
+        super().__init__(condition_id, direction, percent, interval or 60, window_sec)
         self.matched: list[Tuple[str, float, float]] = []
 
     @property

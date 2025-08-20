@@ -136,7 +136,6 @@ class OrderListener(Listener):
 
     def _format_usd(self, value: float) -> str:
         """Форматирует сумму в USD в человекочитаемый вид.
-
         Args:
             value: Сумма в USD.
 
@@ -178,3 +177,4 @@ class OrderListener(Listener):
         # В будущем должна использоваться реализация из базового класса
         for user_id in self.subscribers:
             print(f"Alert for user {user_id}: {text}")
+
