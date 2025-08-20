@@ -165,8 +165,7 @@ async def init_db() -> None:
             await conn.execute(
                 """
                 CREATE INDEX IF NOT EXISTS order_density_size_duration_idx
-                    ON order_density (size_usd, duration_sec)
-                    WHERE ts >= now() - interval '2 minutes' AND ABS(percent_from_market) <= 10;
+                    ON order_density (size_usd, duration_sec, ts, percent_from_market);
                 """
             )
             logger.info("Order_density size/duration index created successfully")
