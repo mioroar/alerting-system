@@ -57,6 +57,7 @@ Expr = Union[Condition, And, Or, Cooldown]
 #: Строка → кортеж вариантов (1,) — ровно одно число; (1, 2) — одно ИЛИ два; (2, 3) — два или три.
 _PARAM_SPEC: Final[dict[str, tuple[int, ...]]] = {
     "oi":            (1,),
+    "oi_sum":        (1,),
     "funding":       (2,),
     "price":         (2, 3),
     "volume":        (2, 3),

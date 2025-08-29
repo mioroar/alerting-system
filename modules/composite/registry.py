@@ -8,6 +8,7 @@ from ..funding.listener.manager import get_funding_listener_manager
 from ..volume.listener.manager import get_volume_amount_listener_manager
 from ..volume_change.listener.manager import get_volume_change_listener_manager
 from ..order.listener.manager import get_order_listener_manager
+from ..oi_sum.listener.manager import get_oi_sum_listener_manager
 
 ListenerFactory = Callable[[Condition, int], Awaitable[Listener]]
 
@@ -58,6 +59,17 @@ async def _price_factory(cond: Condition, _) -> Listener:
     )
     return listener
 
+async def _oi_sum_factory(cond: Condition, _) -> Listener:
+    """oi_sum >|< amount_usd → OISumListener"""
+    manager = await get_oi_sum_listener_manager()
+    listener = await manager.add_listener(
+        {
+            "direction": cond.op,
+            "percent": cond.params[0],
+        },
+        user_id=None,
+    )
+    return listener
 
 async def _oi_factory(cond: Condition, _) -> Listener:
     """oi >|< percent → OIListener (interval автоматически подставляется)"""
@@ -150,3 +162,4 @@ register("funding", _funding_factory)
 register("volume", _volume_factory)
 register("volume_change", _volume_change_factory)
 register("order", _order_factory)
+register("oi_sum", _oi_sum_factory)
