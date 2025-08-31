@@ -9,6 +9,7 @@ from ..volume.listener.manager import get_volume_amount_listener_manager
 from ..volume_change.listener.manager import get_volume_change_listener_manager
 from ..order.listener.manager import get_order_listener_manager
 from ..oi_sum.listener.manager import get_oi_sum_listener_manager
+from ..order_num.listener.manager import get_order_num_listener_manager
 
 ListenerFactory = Callable[[Condition, int], Awaitable[Listener]]
 
@@ -155,6 +156,24 @@ async def _order_factory(cond: Condition, _) -> Listener:
     return listener
 
 
+async def _order_num_factory(cond: Condition, _) -> Listener:
+    """order_num >|< threshold window_sec [interval] → OrderNumListener"""
+    threshold = float(cond.params[0])
+    window_sec = int(cond.params[1])
+    interval = int(cond.params[2]) if len(cond.params) >= 3 else window_sec
+    
+    manager = await get_order_num_listener_manager()
+    listener = await manager.add_listener(
+        {
+            "direction": cond.op,
+            "percent": threshold,
+            "window_sec": window_sec,
+            "interval": interval,
+        },
+        user_id=None,
+    )
+    return listener
+
 # регистрируем при импорте модуля
 register("price", _price_factory)
 register("oi",    _oi_factory)
@@ -163,3 +182,4 @@ register("volume", _volume_factory)
 register("volume_change", _volume_change_factory)
 register("order", _order_factory)
 register("oi_sum", _oi_sum_factory)
+register("order_num", _order_num_factory)

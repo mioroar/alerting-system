@@ -269,15 +269,16 @@ async def get_demo_page() -> HTMLResponse:
     - Создания и управления алертами
     - Просмотра входящих сообщений в реальном времени
     - Тестирования различных WebSocket команд
+    - Просмотра справочника синтаксиса (интегрированный модал)
     
     Returns:
         HTMLResponse: HTML страница с JavaScript кодом для демонстрации
-            WebSocket функциональности системы алертов.
+            WebSocket функциональности системы алертов и встроенным справочником.
             
     Note:
         Страница содержит полный интерфейс для тестирования всех
         возможностей WebSocket API, включая создание алертов,
-        получение уведомлений и управление соединением.
+        получение уведомлений, управление соединением и справочник синтаксиса.
     """
     html = """
 <!DOCTYPE html>
@@ -334,6 +335,32 @@ async def get_demo_page() -> HTMLResponse:
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+        
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .help-btn {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .help-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(23, 162, 184, 0.4);
         }
         
         .status-indicator {
@@ -460,6 +487,298 @@ async def get_demo_page() -> HTMLResponse:
             width: auto;
         }
         
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 2% auto;
+            padding: 0;
+            border-radius: 20px;
+            width: 95%;
+            max-width: 1200px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px) scale(0.9);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.8em;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2em;
+            cursor: pointer;
+            width: auto;
+            margin: 0;
+            padding: 0;
+            line-height: 1;
+        }
+        
+        .close-btn:hover {
+            opacity: 0.7;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .modal-body {
+            padding: 30px;
+        }
+        
+        .syntax-section {
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 1.8em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            font-weight: 600;
+        }
+
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .module-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .module-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+        }
+
+        .module-header-help {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .module-name {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .module-type {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .module-description {
+            color: #555;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .syntax-box {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'SF Mono', Monaco, monospace;
+            margin: 15px 0;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .syntax-title {
+            color: #3498db;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .param-table th,
+        .param-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .param-table th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .param-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .param-name {
+            font-weight: 600;
+            color: #e74c3c;
+            font-family: monospace;
+        }
+
+        .param-type {
+            color: #3498db;
+            font-style: italic;
+        }
+
+        .operators-section {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-left: 5px solid #ffc107;
+        }
+
+        .operators-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .operator-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .operator-symbol {
+            font-size: 2em;
+            font-weight: bold;
+            color: #e74c3c;
+            margin-bottom: 10px;
+        }
+
+        .examples-section {
+            background: linear-gradient(135deg, #e8f5e8, #d4edda);
+            border-radius: 15px;
+            padding: 25px;
+            border-left: 5px solid #28a745;
+        }
+
+        .example-box {
+            background: #2c3e50;
+            color: #ecf0f1;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: monospace;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .example-content {
+            padding: 15px;
+        }
+
+        .example-comment {
+            color: #95a5a6;
+            font-style: italic;
+        }
+
+        .copy-btn-modal {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 0 0 8px 8px;
+            cursor: pointer;
+            font-size: 0.75em;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+            width: 100%;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .copy-btn-modal:hover {
+            opacity: 1;
+        }
+
+        .warning-box {
+            background: linear-gradient(135deg, #ffe6e6, #ffcccc);
+            border-left: 5px solid #dc3545;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border-left: 5px solid #2196F3;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        /* Existing styles for alerts dashboard */
         .alerts-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
@@ -793,10 +1112,477 @@ async def get_demo_page() -> HTMLResponse:
             .alerts-grid {
                 grid-template-columns: 1fr;
             }
+            
+            .modules-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .operators-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                width: 98%;
+                margin: 1% auto;
+            }
+            
+            .modal-body {
+                padding: 15px;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📚 Справочник синтаксиса алертов</h2>
+                <button class="close-btn" onclick="closeHelpModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Операторы и логика -->
+                <div class="syntax-section">
+                    <h2 class="section-title">🔧 Операторы и логические связки</h2>
+                    
+                    <div class="operators-section">
+                        <div class="operators-grid">
+                            <div class="operator-card">
+                                <div class="operator-symbol">&</div>
+                                <h4>Логическое И (AND)</h4>
+                                <p>Все условия должны выполняться одновременно</p>
+                                <div class="syntax-box">price > 5 300 60 & volume > 1000000 60</div>
+                            </div>
+                            
+                            <div class="operator-card">
+                                <div class="operator-symbol">|</div>
+                                <h4>Логическое ИЛИ (OR)</h4>
+                                <p>Хотя бы одно из условий должно выполниться</p>
+                                <div class="syntax-box">price > 5 300 60 | oi > 10</div>
+                            </div>
+                            
+                            <div class="operator-card">
+                                <div class="operator-symbol">@</div>
+                                <h4>Cooldown (задержка)</h4>
+                                <p>Ограничивает частоту срабатываний алерта</p>
+                                <div class="syntax-box">price > 5 300 60 @120</div>
+                                <small>Алерт сработает не чаще раза в 120 секунд</small>
+                                <small>Ставится строго в конце выражения</small>
+                            </div>
+                        </div>
+
+                        <div class="info-box">
+                            <strong>Приоритет операций:</strong> сначала <code>&</code> (AND), затем <code>|</code> (OR). 
+                            Используйте скобки для изменения приоритета: <code>(A | B) & C</code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Модули -->
+                <div class="syntax-section">
+                    <h2 class="section-title">📊 Доступные модули</h2>
+                    
+                    <div class="modules-grid">
+                        <!-- Price Module -->
+                        <div class="module-card">
+                            <div class="module-header-help">
+                                <span class="module-name">price</span>
+                                <span class="module-type">Цена</span>
+                            </div>
+                            <div class="module-description">
+                                Отслеживает изменение цены за указанный временной интервал
+                            </div>
+                            
+                            <div class="syntax-box">
+                                <div class="syntax-title">Синтаксис:</div>
+                                price &lt;оператор&gt; &lt;процент&gt; &lt;окно&gt; [период_проверки]
+                            </div>
+                            
+                            <table class="param-table">
+                                <tr>
+                                    <th>Параметр</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">процент</td>
+                                    <td class="param-type">float</td>
+                                    <td>Порог изменения цены в %</td>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">окно</td>
+                                    <td class="param-type">int</td>
+                                    <td>Период расчета в секундах</td>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">период</td>
+                                    <td class="param-type">int</td>
+                                    <td>Частота проверки (опционально)</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="example-box">
+                                <div class="example-content">
+                                    <div>price > 5 300 60 <span class="example-comment">// +/-5% за 5 минут, проверка каждую минуту</span></div>
+                                </div>
+                                <button class="copy-btn-modal" onclick="copyToClipboardModal('price > 5 300 60')">Copy</button>
+                            </div>
+                        </div>
+
+                        <!-- Volume Module -->
+                        <div class="module-card">
+                            <div class="module-header-help">
+                                <span class="module-name">volume</span>
+                                <span class="module-type">Объем</span>
+                            </div>
+                            <div class="module-description">
+                                Отслеживает абсолютный объем торгов в USD за временное окно
+                            </div>
+                            
+                            <div class="syntax-box">
+                                <div class="syntax-title">Синтаксис:</div>
+                                volume &lt;оператор&gt; &lt;сумма_USD&gt; &lt;окно&gt; [период]
+                            </div>
+                            
+                            <table class="param-table">
+                                <tr>
+                                    <th>Параметр</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">сумма_USD</td>
+                                    <td class="param-type">float</td>
+                                    <td>Пороговый объем в долларах</td>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">окно</td>
+                                    <td class="param-type">int</td>
+                                    <td>Период расчета в секундах</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="example-box">
+                                <div class="example-content">
+                                    <div>volume > 1000000 300 60 <span class="example-comment">// >1M USD за 5 минут, проверка каждую минуту</span></div>
+                                </div>
+                                <button class="copy-btn-modal" onclick="copyToClipboardModal('volume > 1000000 300 60')">Copy</button>
+                            </div>
+                        </div>
+
+                        <!-- Volume Change Module -->
+                        <div class="module-card">
+                            <div class="module-header-help">
+                                <span class="module-name">volume_change</span>
+                                <span class="module-type">Изм. объема</span>
+                            </div>
+                            <div class="module-description">
+                                Сравнивает объем торгов между двумя соседними временными окнами
+                            </div>
+                            
+                            <div class="syntax-box">
+                                <div class="syntax-title">Синтаксис:</div>
+                                volume_change &lt;оператор&gt; &lt;процент&gt; &lt;окно&gt; [период]
+                            </div>
+                            
+                            <table class="param-table">
+                                <tr>
+                                    <th>Параметр</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">процент</td>
+                                    <td class="param-type">float</td>
+                                    <td>Порог изменения объема в %</td>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">окно</td>
+                                    <td class="param-type">int</td>
+                                    <td>Размер окна сравнения в секундах</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="example-box">
+                                <div class="example-content">
+                                    <div>volume_change > 100 1800 60 <span class="example-comment">// +100% за 30 минут</span></div>
+                                </div>
+                                <button class="copy-btn-modal" onclick="copyToClipboardModal('volume_change > 100 1800 60')">Copy</button>
+                            </div>
+                        </div>
+
+                        <!-- OI Module -->
+                        <div class="module-card">
+                            <div class="module-header-help">
+                                <span class="module-name">oi</span>
+                                <span class="module-type">Откр. интерес</span>
+                            </div>
+                            <div class="module-description">
+                                Отслеживает изменение открытого интереса относительно медианы за 24 часа
+                            </div>
+                            
+                            <div class="syntax-box">
+                                <div class="syntax-title">Синтаксис:</div>
+                                oi &lt;оператор&gt; &lt;процент&gt;
+                            </div>
+                            
+                            <table class="param-table">
+                                <tr>
+                                    <th>Параметр</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">процент</td>
+                                    <td class="param-type">float</td>
+                                    <td>Отклонение от медианы в %</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="example-box">
+                                <div class="example-content">
+                                    <div>oi > 200 <span class="example-comment">// OI вырос на 200% от медианы</span></div>
+                                </div>
+                                <button class="copy-btn-modal" onclick="copyToClipboardModal('oi > 200')">Copy</button>
+                            </div>
+                        </div>
+
+                        <!-- OI Sum Module -->
+                        <div class="module-card">
+                            <div class="module-header-help">
+                                <span class="module-name">oi_sum</span>
+                                <span class="module-type">Абс. OI</span>
+                            </div>
+                            <div class="module-description">
+                                Проверяет абсолютное значение открытого интереса в USD
+                            </div>
+                            
+                            <div class="syntax-box">
+                                <div class="syntax-title">Синтаксис:</div>
+                                oi_sum &lt;оператор&gt; &lt;сумма_USD&gt;
+                            </div>
+                            
+                            <table class="param-table">
+                                <tr>
+                                    <th>Параметр</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">сумма_USD</td>
+                                    <td class="param-type">float</td>
+                                    <td>Пороговое значение OI в долларах</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="example-box">
+                                <div class="example-content">
+                                    <div>oi_sum > 3000000000 <span class="example-comment">// OI больше 3 MЛРД USD</span></div>
+                                </div>
+                                <button class="copy-btn-modal" onclick="copyToClipboardModal('oi_sum > 3000000000')">Copy</button>
+                            </div>
+                        </div>
+
+                        <!-- Funding Module -->
+                        <div class="module-card">
+                            <div class="module-header-help">
+                                <span class="module-name">funding</span>
+                                <span class="module-type">Фандинг</span>
+                            </div>
+                            <div class="module-description">
+                                Отслеживает фандинг ставки перед расчетом
+                            </div>
+                            
+                            <div class="syntax-box">
+                                <div class="syntax-title">Синтаксис:</div>
+                                funding &lt;оператор&gt; &lt;процент&gt; &lt;время_до_расчета&gt;
+                            </div>
+                            
+                            <table class="param-table">
+                                <tr>
+                                    <th>Параметр</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">процент</td>
+                                    <td class="param-type">float</td>
+                                    <td>Абсолютное значение ставки в %</td>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">время</td>
+                                    <td class="param-type">int</td>
+                                    <td>Макс. время до расчета в секундах</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="example-box">
+                                <div class="example-content">
+                                    <div>funding > 1 3600 <span class="example-comment">// |funding| >= 1% за час до расчета</span></div>
+                                </div>
+                                <button class="copy-btn-modal" onclick="copyToClipboardModal('funding > 1 3600')">Copy</button>
+                            </div>
+                        </div>
+
+                        <!-- Order Module -->
+                        <div class="module-card">
+                            <div class="module-header-help">
+                                <span class="module-name">order</span>
+                                <span class="module-type">Ордера</span>
+                            </div>
+                            <div class="module-description">
+                                Отслеживает крупные ордера в стакане, которые держатся определенное время
+                            </div>
+                            
+                            <div class="syntax-box">
+                                <div class="syntax-title">Синтаксис:</div>
+                                order &lt;оператор&gt; &lt;размер_USD&gt; &lt;макс_%_откл&gt; &lt;мин_длительность&gt;
+                            </div>
+                            
+                            <table class="param-table">
+                                <tr>
+                                    <th>Параметр</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">размер_USD</td>
+                                    <td class="param-type">float</td>
+                                    <td>Минимальный размер ордера в USD(от 200 000 USD)</td>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">макс_%</td>
+                                    <td class="param-type">float</td>
+                                    <td>Максимальное отклонение от цены в % (от 0 до 10%)</td>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">длительность</td>
+                                    <td class="param-type">int</td>
+                                    <td>Минимальное время жизни в секундах</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="example-box">
+                                <div class="example-content">
+                                    <div>order > 1000000 5 300 <span class="example-comment">// Ордер >1M USD, ±5% от цены, >5 минут</span></div>
+                                </div>
+                                <button class="copy-btn-modal" onclick="copyToClipboardModal('order > 1000000 5 300')">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Операторы сравнения -->
+                <div class="syntax-section">
+                    <h2 class="section-title">⚖️ Операторы сравнения</h2>
+                    
+                    <div class="operators-section">
+                        <table class="param-table">
+                            <tr>
+                                <th>Оператор</th>
+                                <th>Описание</th>
+                                <th>Пример использования</th>
+                            </tr>
+                            <tr>
+                                <td class="param-name">></td>
+                                <td>Больше порогового значения</td>
+                                <td><code>price > 5 300</code></td>
+                            </tr>
+                            <tr>
+                                <td class="param-name"><</td>
+                                <td>Меньше порогового значения</td>
+                                <td><code>volume_change < 100 600</code></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Примеры -->
+                <div class="syntax-section">
+                    <h2 class="section-title">💡 Практические примеры</h2>
+                    
+                    <div class="examples-section">
+                        <h3>Простые условия:</h3>
+                        
+                        <div class="example-box">
+                            <div class="example-content">
+                                <div>price > 3 300 60 <span class="example-comment">// Цена изменилась на ±3% за 5 минут</span></div>
+                            </div>
+                            <button class="copy-btn-modal" onclick="copyToClipboardModal('price > 3 300 60')">Copy</button>
+                        </div>
+                        
+                        <div class="example-box">
+                            <div class="example-content">
+                                <div>volume > 5000000 600 <span class="example-comment">// Объем >5M USD за 10 минут</span></div>
+                            </div>
+                            <button class="copy-btn-modal" onclick="copyToClipboardModal('volume > 5000000 600')">Copy</button>
+                        </div>
+                        
+                        <div class="example-box">
+                            <div class="example-content">
+                                <div>oi > 250 <span class="example-comment">// OI вырос на 250% от медианы</span></div>
+                            </div>
+                            <button class="copy-btn-modal" onclick="copyToClipboardModal('oi > 250')">Copy</button>
+                        </div>
+
+                        <h3>Сложные условия с логикой:</h3>
+                        
+                        <div class="example-box">
+                            <div class="example-content">
+                                <div>price > 2 180 60 & volume > 2000000 180 <span class="example-comment">// Цена И объем одновременно</span></div>
+                            </div>
+                            <button class="copy-btn-modal" onclick="copyToClipboardModal('price > 2 180 60 & volume > 2000000 180')">Copy</button>
+                        </div>
+                        
+                        <div class="example-box">
+                            <div class="example-content">
+                                <div>oi > 100 | funding > 1.5 1800 <span class="example-comment">// OI ИЛИ высокий фандинг</span></div>
+                            </div>
+                            <button class="copy-btn-modal" onclick="copyToClipboardModal('oi > 100 | funding > 1.5 1800')">Copy</button>
+                        </div>
+                        
+                        <div class="example-box">
+                            <div class="example-content">
+                                <div>(price > 5 300 & volume > 1000000 300) | oi > 300 <span class="example-comment">// Группировка со скобками</span></div>
+                            </div>
+                            <button class="copy-btn-modal" onclick="copyToClipboardModal('(price > 5 300 & volume > 1000000 300) | oi > 300')">Copy</button>
+                        </div>
+
+                        <h3>С задержкой (cooldown):</h3>
+                        
+                        <div class="example-box">
+                            <div class="example-content">
+                                <div>price > 10 60 @300 <span class="example-comment">// Сильное движение цены, не чаще раза в 5 минут</span></div>
+                            </div>
+                            <button class="copy-btn-modal" onclick="copyToClipboardModal('price > 10 60 @300')">Copy</button>
+                        </div>
+                        
+                        <div class="example-box">
+                            <div class="example-content">
+                                <div>volume_change > 500 900 60 @600 <span class="example-comment">// Взрывной рост объема, cooldown 10 минут</span></div>
+                            </div>
+                            <button class="copy-btn-modal" onclick="copyToClipboardModal('volume_change > 500 900 60 @600')">Copy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Важные заметки -->
+                <div class="syntax-section">
+                    <h2 class="section-title">⚠️ Важные заметки</h2>
+                    
+                    <div class="warning-box">
+                        <strong>Внимание:</strong>
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li>Модуль <code>funding</code> работает с абсолютным значением ставки (|rate|)</li>
+                            <li>Cooldown применяется к результирующему выражению и работает по каждому тикеру отдельно</li>
+                        </ul>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <!-- Sidebar -->
         <div class="sidebar">
@@ -819,6 +1605,9 @@ async def get_demo_page() -> HTMLResponse:
                     <input type="text" id="alertExpression" placeholder="price > 5 300 60" />
                 </div>
                 <button onclick="createAlert()" class="btn-success">Создать</button>
+                <button onclick="openHelpModal()" class="help-btn" style="width: 100%; margin-top: 10px;">
+                    📚 Справочник синтаксиса
+                </button>
                 
                 <div class="examples">
                       <strong>Примеры:</strong><br>
@@ -858,9 +1647,14 @@ async def get_demo_page() -> HTMLResponse:
             <!-- Header -->
             <div class="header">
                 <h1>🚨 Alerts Dashboard</h1>
-                <div>
-                    <span>Статус: </span>
-                    <span id="status" class="status-indicator disconnected">Отключено</span>
+                <div class="header-controls">
+                    <button class="help-btn" onclick="openHelpModal()">
+                        📚 Справочник
+                    </button>
+                    <div>
+                        <span>Статус: </span>
+                        <span id="status" class="status-indicator disconnected">Отключено</span>
+                    </div>
                 </div>
             </div>
             
@@ -911,6 +1705,40 @@ async def get_demo_page() -> HTMLResponse:
         let triggeredToday = 0;
         let connectedUsers = 0;
         let alertBlacklists = {}; // alertId -> Set of blacklisted tickers
+
+        // Modal Functions
+        function openHelpModal() {
+            document.getElementById('helpModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeHelpModal() {
+            document.getElementById('helpModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        function copyToClipboardModal(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                showSystemMessage('Скопировано: ' + text, 'success');
+            }).catch(function(err) {
+                showSystemMessage('Ошибка копирования', 'error');
+            });
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('helpModal');
+            if (event.target === modal) {
+                closeHelpModal();
+            }
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeHelpModal();
+            }
+        });
 
         // Load blacklists from localStorage
         function loadBlacklists() {
@@ -1517,5 +2345,5 @@ async def get_demo_page() -> HTMLResponse:
     </script>
 </body>
 </html>
-    """
+"""
     return HTMLResponse(content=html)

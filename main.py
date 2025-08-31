@@ -15,6 +15,7 @@ from modules.volume_change.volume import main as volume_change_main
 from modules.oi.oi import main as oi_main
 from modules.funding.funding import main as funding_main
 from modules.order.order import main as order_main
+from modules.order_num.order_num import main as order_num_main
 from bot.handlers.modules.composite import composite_loop
 from db.init_db import init_db
 from db.logic import close_pool
@@ -64,6 +65,7 @@ async def alert_processing_loop() -> None:
         asyncio.create_task(oi_main()),
         asyncio.create_task(funding_main()),
         asyncio.create_task(order_main()),
+        asyncio.create_task(order_num_main()),
         asyncio.create_task(composite_loop())
     ]
     

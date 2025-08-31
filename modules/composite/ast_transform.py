@@ -63,6 +63,7 @@ _PARAM_SPEC: Final[dict[str, tuple[int, ...]]] = {
     "volume":        (2, 3),
     "volume_change": (2, 3),
     "order":         (3,),
+    "order_num":     (2, 3),
 #    "spread":        (2,),
 }
 
@@ -121,10 +122,16 @@ class AlertTransformer(Transformer):
         """
         module = module_tok.value
 
-        if rest and isinstance(rest[0], list):
-            params = [ first, *rest[0] ]
-        else:
-            params = [ first ]
+        # Обрабатываем дополнительные параметры
+        params = [first]
+        
+        if rest:
+            # rest[0] может быть либо списком чисел от param_tail, либо отдельным числом
+            if isinstance(rest[0], list):
+                params.extend(rest[0])
+            else:
+                # Если rest содержит отдельные числа, добавляем их все
+                params.extend(rest)
 
         allowed = _PARAM_SPEC.get(module)
         if allowed is None:

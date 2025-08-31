@@ -33,6 +33,19 @@ async def init_db() -> None:
         except Exception as e:
             logger.warning(f"Failed to create price table: {e}")
 
+        try:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS trade_count (
+                    ts          TIMESTAMPTZ   NOT NULL,
+                    symbol      TEXT          NOT NULL,
+                    trade_count INTEGER       NOT NULL,
+                    CONSTRAINT trade_count_pk PRIMARY KEY (ts, symbol)
+                );
+                """)
+            logger.info("Order_num table created successfully")
+        except Exception as e:
+            logger.warning(f"Failed to create order_num table: {e}")
+
         # Создание таблицы volume
         try:
             await conn.execute("""
@@ -104,6 +117,14 @@ async def init_db() -> None:
         except Exception as e:
             logger.warning(f"Failed to create order_density hypertable: {e}")
 
+        try:
+            await conn.execute("""
+            SELECT create_hypertable('trade_count', by_range('ts'), if_not_exists => TRUE);
+            """)
+            logger.info("Trade_count hypertable created successfully")
+        except Exception as e:
+            logger.warning(f"Failed to create trade_count hypertable: {e}")
+
         # Создание hypertable для price
         try:
             await conn.execute(
@@ -123,6 +144,16 @@ async def init_db() -> None:
             logger.info("Price index created successfully")
         except Exception as e:
             logger.warning(f"Failed to create price index: {e}")
+
+        try:
+            await conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS trade_count_symbol_ts_desc_idx
+                    ON trade_count (symbol, ts DESC) INCLUDE (trade_count);
+                """)
+            logger.info("Trade_count index created successfully")
+        except Exception as e:
+            logger.warning(f"Failed to create trade_count index: {e}")
 
         # Создание hypertable для volume
         try:
@@ -196,6 +227,15 @@ async def init_db() -> None:
             logger.info("Open interest retention policy added successfully")
         except Exception as e:
             logger.warning(f"Failed to add open interest retention policy: {e}")
+
+        try:
+            await conn.execute(
+                """
+                SELECT add_retention_policy('trade_count', INTERVAL '24 hours', if_not_exists => TRUE);
+                """)
+            logger.info("Trade_count retention policy added successfully")
+        except Exception as e:
+            logger.warning(f"Failed to add trade_count retention policy: {e}")
 
         try:
             await conn.execute(
