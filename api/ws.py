@@ -1469,6 +1469,52 @@ async def get_demo_page() -> HTMLResponse:
                                 <button class="copy-btn-modal" onclick="copyToClipboardModal('order > 1000000 5 300')">Copy</button>
                             </div>
                         </div>
+
+                        <!-- Order Num Module -->
+                        <div class="module-card">
+                            <div class="module-header-help">
+                                <span class="module-name">order_num</span>
+                                <span class="module-type">Кол-во сделок</span>
+                            </div>
+                            <div class="module-description">
+                                Отслеживает процентное изменение количества сделок между двумя соседними временными окнами
+                            </div>
+                            
+                            <div class="syntax-box">
+                                <div class="syntax-title">Синтаксис:</div>
+                                order_num &lt;оператор&gt; &lt;процент&gt; &lt;окно&gt; [период]
+                            </div>
+                            
+                            <table class="param-table">
+                                <tr>
+                                    <th>Параметр</th>
+                                    <th>Тип</th>
+                                    <th>Описание</th>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">процент</td>
+                                    <td class="param-type">float</td>
+                                    <td>Порог изменения количества сделок в %</td>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">окно</td>
+                                    <td class="param-type">int</td>
+                                    <td>Размер окна сравнения в секундах</td>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">период</td>
+                                    <td class="param-type">int</td>
+                                    <td>Частота проверки (опционально, по умолчанию 60 сек)</td>
+                                </tr>
+                            </table>
+                            
+                            <div class="example-box">
+                                <div class="example-content">
+                                    <div>order_num > 150 900 60 <span class="example-comment">// +150% сделок за 15 минут</span></div>
+                                </div>
+                                <button class="copy-btn-modal" onclick="copyToClipboardModal('order_num > 150 900 60')">Copy</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1524,6 +1570,13 @@ async def get_demo_page() -> HTMLResponse:
                             </div>
                             <button class="copy-btn-modal" onclick="copyToClipboardModal('oi > 250')">Copy</button>
                         </div>
+                        
+                        <div class="example-box">
+                            <div class="example-content">
+                                <div>order_num > 200 600 60 <span class="example-comment">// Количество сделок увеличилось на 200% за 10 минут</span></div>
+                            </div>
+                            <button class="copy-btn-modal" onclick="copyToClipboardModal('order_num > 200 600 60')">Copy</button>
+                        </div>
 
                         <h3>Сложные условия с логикой:</h3>
                         
@@ -1539,6 +1592,13 @@ async def get_demo_page() -> HTMLResponse:
                                 <div>oi > 100 | funding > 1.5 1800 <span class="example-comment">// OI ИЛИ высокий фандинг</span></div>
                             </div>
                             <button class="copy-btn-modal" onclick="copyToClipboardModal('oi > 100 | funding > 1.5 1800')">Copy</button>
+                        </div>
+                        
+                        <div class="example-box">
+                            <div class="example-content">
+                                <div>price > 3 300 60 & order_num > 100 300 60 <span class="example-comment">// Цена И активность сделок</span></div>
+                            </div>
+                            <button class="copy-btn-modal" onclick="copyToClipboardModal('price > 3 300 60 & order_num > 100 300 60')">Copy</button>
                         </div>
                         
                         <div class="example-box">
@@ -1613,6 +1673,7 @@ async def get_demo_page() -> HTMLResponse:
                       <strong>Примеры:</strong><br>
                         • <code>price > 5 300 60</code> — окно 300с, опрос каждые 60с<br>
                         • <code>volume > 1000000 10800 60</code> — объём за 3ч, опрос каждую минуту<br>
+                        • <code>order_num > 150 600 60</code> — +150% сделок за 10 минут<br>
                         • <code>price > 5 300 60 & volume > 1000000 60</code><br>
                         • <code>volume_change > 50 1800 60</code><br>
                         • <code>price > 5 300 60 | oi > 200</code><br>
