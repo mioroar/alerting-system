@@ -1,13 +1,14 @@
 import httpx
 import asyncio
 import time
-from typing import List, Set
+from typing import List, Set, Dict
 from collections import deque
 from datetime import datetime, timedelta
 
 from modules.oi.config import EXINFO_API_URL, OI_API_URL, OIInfo, _get_client
 from modules.config import TICKER_BLACKLIST
 from config import logger
+from db.logic import get_pool
 
 _FAILED_SYMBOLS: Set[str] = set()
 _FAILED_SYMBOLS_TTL: dict[str, float] = {}
@@ -82,6 +83,57 @@ def _add_to_blacklist(symbol: str) -> None:
     _FAILED_SYMBOLS.add(symbol)
     _FAILED_SYMBOLS_TTL[symbol] = time.time() + _CACHE_DURATION
     logger.debug("Added %s to temporary blacklist", symbol)
+
+async def _get_latest_prices(symbols: List[str]) -> Dict[str, float]:
+    """Получает последние цены для указанных символов из базы данных.
+
+    Args:
+        symbols: Список символов для получения цен.
+
+    Returns:
+        Dict[str, float]: Словарь где ключ - символ, значение - цена.
+
+    Raises:
+        Exception: При ошибке выполнения SQL запроса.
+
+    Note:
+        Использует тот же SQL паттерн что и PriceListener для получения последних цен.
+        Возвращает цены только для символов, по которым есть свежие данные (не старше 2 минут).
+    """
+    if not symbols:
+        return {}
+    
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT DISTINCT ON (p.symbol)
+                    p.symbol,
+                    p.price
+                FROM price AS p
+                WHERE p.symbol = ANY($1)
+                  AND p.ts >= now() - interval '2 minutes'
+                ORDER BY p.symbol, p.ts DESC
+                """,
+                symbols,
+            )
+        
+        prices = {}
+        for row in rows:
+            try:
+                prices[row['symbol']] = float(row['price'])
+            except (ValueError, TypeError) as exc:
+                logger.warning("Invalid price for %s: %s, error: %s", 
+                             row['symbol'], row['price'], exc)
+                continue
+        
+        logger.debug("Retrieved prices from DB for %d/%d symbols", len(prices), len(symbols))
+        return prices
+        
+    except Exception as exc:
+        logger.exception("Error fetching prices from database: %s", exc)
+        return {}
 
 async def _get_perp_symbols() -> list[str]:
     """Возвращает список символов perpetual-фьючерсов Binance.
@@ -199,13 +251,14 @@ async def _fetch_single(symbol: str) -> OIInfo | None:
             return None
 
 async def fetch_oi_info() -> List[OIInfo]:
-    """Собираем OI с учетом rate limiting.
+    """Собираем OI с учетом rate limiting и конвертируем в доллары.
 
     Получает информацию об открытом интересе для всех доступных perpetual-фьючерсов
     с ограничением одновременных запросов и соблюдением rate limits.
+    Конвертирует OI из монет в доллары, умножая на текущую цену.
 
     Returns:
-        List[OIInfo]: Список информации об открытом интересе для всех успешно обработанных символов.
+        List[OIInfo]: Список информации об открытом интересе в долларах для всех успешно обработанных символов.
     """
     symbols = await _get_perp_symbols()
     
@@ -228,18 +281,48 @@ async def fetch_oi_info() -> List[OIInfo]:
             results = await asyncio.gather(*tasks, return_exceptions=True)
             
             error_count = 0
+            batch_successful = []
             
             for j, result in enumerate(results):
                 if isinstance(result, Exception):
                     error_count += 1
                     logger.debug("Task failed for symbol %s: %s", batch[j], result)
                 elif result is not None:
-                    successful_results.append(result)
+                    batch_successful.append(result)
+            
+            # Конвертируем OI в доллары для успешно полученных данных
+            if batch_successful:
+                batch_symbols = [oi['symbol'] for oi in batch_successful]
+                prices = await _get_latest_prices(batch_symbols)
+                
+                converted_count = 0
+                for oi_data in batch_successful:
+                    symbol = oi_data['symbol']
+                    price = prices.get(symbol)
+                    
+                    if price is not None and price > 0:
+                        try:
+                            # Конвертируем OI из монет в доллары
+                            oi_coins = float(oi_data['oi'])
+                            oi_usd = oi_coins * price
+                            oi_data['oi'] = str(oi_usd)
+                            converted_count += 1
+                        except (ValueError, TypeError) as exc:
+                            logger.warning("Failed to convert OI for %s: oi=%s, price=%s, error=%s", 
+                                         symbol, oi_data['oi'], price, exc)
+                            continue
+                    else:
+                        logger.warning("No price available for %s, skipping conversion", symbol)
+                        # Оставляем OI в монетах, если нет цены
+                    
+                    successful_results.append(oi_data)
+                
+                if converted_count > 0:
+                    logger.debug("Converted %d/%d OI values to USD in batch", converted_count, len(batch_successful))
             
             if error_count > 0:
                 logger.debug("Batch completed: %d successful, %d failed", 
-                           len([r for r in results if r and not isinstance(r, Exception)]), 
-                           error_count)
+                           len(batch_successful), error_count)
             
             if i + batch_size < len(symbols):
                 await asyncio.sleep(1)
