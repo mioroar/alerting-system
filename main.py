@@ -1,11 +1,14 @@
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=True)
 
+import os
 import asyncio
 import uvicorn
 from fastapi import FastAPI
 from contextlib import suppress, asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from config import logger
 from api.alerts import router as alerts_router
@@ -16,9 +19,18 @@ from modules.oi.oi import main as oi_main
 from modules.funding.funding import main as funding_main
 from modules.order.order import main as order_main
 from modules.order_num.order_num import main as order_num_main
-from bot.handlers.modules.composite import composite_loop
+from modules.composite.manager import CompositeListenerManager
 from db.init_db import init_db
 from db.logic import close_pool
+
+async def composite_loop(base_step: int = 5) -> None:
+    mgr = CompositeListenerManager.instance()
+    while True:
+        try:
+            await mgr.tick()
+        except Exception as exc:
+            logger.exception(f"Composite tick failed: {exc}")
+        await asyncio.sleep(base_step)
 
 
 @asynccontextmanager
