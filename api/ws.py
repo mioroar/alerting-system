@@ -1260,6 +1260,11 @@ async def get_demo_page() -> HTMLResponse:
                                     <td class="param-type">int</td>
                                     <td>Период расчета в секундах</td>
                                 </tr>
+                                <tr>
+                                    <td class="param-name">период</td>
+                                    <td class="param-type">int</td>
+                                    <td>Частота проверки (опционально)</td>
+                                </tr>
                             </table>
                             
                             <div class="example-box">
@@ -1300,6 +1305,11 @@ async def get_demo_page() -> HTMLResponse:
                                     <td class="param-name">окно</td>
                                     <td class="param-type">int</td>
                                     <td>Размер окна сравнения в секундах</td>
+                                </tr>
+                                <tr>
+                                    <td class="param-name">период</td>
+                                    <td class="param-type">int</td>
+                                    <td>Частота проверки (опционально)</td>
                                 </tr>
                             </table>
                             
