@@ -1214,14 +1214,14 @@ async def get_orders_page() -> HTMLResponse:
                 if (isGrouped) {
                     if (groupSize > 3) {
                         // Для групп больше 3 - только тикер
-                        block.textContent = density.s;
+                        block.textContent = this.formatTicker(density.s);
                     } else {
                         // Для групп 2-3 - тикер + объем
-                        block.textContent = `${density.s} ${this.formatUSD(density.u)}`;
+                        block.textContent = `${this.formatTicker(density.s)} ${this.formatUSD(density.u)}`;
                     }
                 } else {
                     // Для обычных блоков - полный формат
-                    block.textContent = `${density.s} ${this.formatUSD(density.u)} (${this.formatDuration(density.d)})`;
+                    block.textContent = `${this.formatTicker(density.s)} ${this.formatUSD(density.u)} (${this.formatDuration(density.d)})`;
                 }
                 
                 block.classList.toggle('long', density.t === 'L');
@@ -1247,6 +1247,10 @@ async def get_orders_page() -> HTMLResponse:
                     return `${minutes}м ${secs}с`;
                 }
                 return `${seconds}с`;
+            }
+
+            formatTicker(ticker) {
+                return ticker.endsWith('USDT') ? ticker.slice(0, -4) : ticker;
             }
 
             showTooltip(density, event) {
