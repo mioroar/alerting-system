@@ -586,8 +586,31 @@ async def get_orders_page() -> HTMLResponse:
             text-overflow: ellipsis;
             cursor: pointer;
             transform: translateY(-50%);
-            transition: top 0.3s ease, background-color 0.3s ease;
+            transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, background-color 0.3s ease;
             z-index: 1;
+            min-height: 18px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .density-block.grouped {
+            font-size: 9px;
+            padding: 1px 3px;
+            min-height: 14px;
+            overflow: visible; /* Позволяем показывать номера */
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .density-block.grouped:hover {
+            z-index: 11; /* Выше чем обычные блоки при наведении */
+            transform: translateY(-50%) scale(1.05);
+        }
+        
+        /* Стили для очень маленьких блоков в больших группах */
+        .density-block.grouped.tiny {
+            font-size: 8px;
+            padding: 1px 2px;
+            min-height: 12px;
         }
         .density-block.long {
             background-color: rgba(35, 134, 54, 0.5);
@@ -610,6 +633,77 @@ async def get_orders_page() -> HTMLResponse:
             transform: translate(-50%, -50%);
             color: var(--text-secondary);
             display: none; /* Hidden by default */
+        }
+
+        /* --- Кастомный Tooltip --- */
+        .custom-tooltip {
+            position: absolute;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 12px;
+            color: var(--text-primary);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            max-width: 200px;
+            backdrop-filter: blur(10px);
+        }
+
+        .custom-tooltip.visible {
+            opacity: 1;
+        }
+
+        .tooltip-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 6px;
+        }
+
+        .tooltip-type {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .tooltip-type.long {
+            background: rgba(35, 134, 54, 0.2);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+        }
+
+        .tooltip-type.short {
+            background: rgba(218, 54, 51, 0.2);
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+        }
+
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .tooltip-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .tooltip-label {
+            color: var(--text-secondary);
+        }
+
+        .tooltip-value {
+            color: var(--text-primary);
+            font-weight: 500;
         }
 
     </style>
@@ -707,6 +801,30 @@ async def get_orders_page() -> HTMLResponse:
         </div>
     </div>
 
+    <!-- Кастомный Tooltip -->
+    <div class="custom-tooltip" id="customTooltip">
+        <div class="tooltip-header">
+            <span class="tooltip-ticker"></span>
+            <span class="tooltip-type"></span>
+        </div>
+        <div class="tooltip-row">
+            <span class="tooltip-label">Объём:</span>
+            <span class="tooltip-value tooltip-volume"></span>
+        </div>
+        <div class="tooltip-row">
+            <span class="tooltip-label">Цена:</span>
+            <span class="tooltip-value tooltip-price"></span>
+        </div>
+        <div class="tooltip-row">
+            <span class="tooltip-label">Отклонение:</span>
+            <span class="tooltip-value tooltip-deviation"></span>
+        </div>
+        <div class="tooltip-row">
+            <span class="tooltip-label">Длительность:</span>
+            <span class="tooltip-value tooltip-duration"></span>
+        </div>
+    </div>
+
     <script>
         class DensityManager {
             constructor() {
@@ -714,6 +832,8 @@ async def get_orders_page() -> HTMLResponse:
                 this.settings = this.loadSettings();
                 this.ws = null;
                 this.reconnectAttempts = 0;
+                this.tooltip = document.getElementById('customTooltip');
+                this.tooltipTimer = null;
             }
 
             loadSettings() {
@@ -909,32 +1029,205 @@ async def get_orders_page() -> HTMLResponse:
                 const lane = document.getElementById(`lane${laneNum}`);
                 const maxDev = this.settings.maxDeviation;
                 
-                const existingBlocks = new Map();
-                lane.querySelectorAll('.density-block').forEach(b => existingBlocks.set(b.dataset.key, b));
-
-                for (const density of densities) {
-                    const key = `${density.s}:${density.t}:${density.p}`;
-                    let block = existingBlocks.get(key);
-
-                    if (!block) {
-                        block = document.createElement('div');
-                        block.className = 'density-block';
-                        block.dataset.key = key;
-                        lane.appendChild(block);
+                // Удаляем старые блоки
+                lane.querySelectorAll('.density-block').forEach(block => block.remove());
+                
+                if (densities.length === 0) return;
+                
+                // Создаем блоки с позициями
+                const blocks = densities.map(density => {
+                    const topPercent = 50 - (density.pct / maxDev * 50);
+                    return {
+                        density,
+                        topPercent,
+                        element: null,
+                        group: null,
+                        horizontalIndex: 0
+                    };
+                });
+                
+                // Сортируем по позиции для более предсказуемой группировки
+                blocks.sort((a, b) => a.topPercent - b.topPercent);
+                
+                // Обнаруживаем и группируем пересекающиеся блоки
+                const groups = this.detectCollisions(blocks);
+                
+                // Создаем DOM элементы и позиционируем их
+                for (const group of groups) {
+                    this.createAndPositionBlocks(lane, group, maxDev);
+                }
+            }
+            
+            detectCollisions(blocks) {
+                // Получаем реальную высоту дорожки
+                const lane = document.querySelector('.density-lane');
+                const laneHeight = lane ? lane.offsetHeight : 400;
+                const blockHeight = 18; // Высота блока в пикселях
+                const pixelsPerPercent = laneHeight / 100;
+                const blockHeightPercent = blockHeight / pixelsPerPercent;
+                
+                const groups = [];
+                const processed = new Set();
+                
+                for (let i = 0; i < blocks.length; i++) {
+                    if (processed.has(i)) continue;
+                    
+                    const group = [blocks[i]];
+                    processed.add(i);
+                    
+                    // Ищем все блоки, которые пересекаются с текущей группой
+                    let groupChanged = true;
+                    while (groupChanged) {
+                        groupChanged = false;
+                        
+                        for (let j = 0; j < blocks.length; j++) {
+                            if (processed.has(j)) continue;
+                            
+                            // Проверяем пересечение с любым блоком в группе
+                            for (const groupBlock of group) {
+                                if (this.blocksOverlap(blocks[j], groupBlock, blockHeightPercent)) {
+                                    group.push(blocks[j]);
+                                    processed.add(j);
+                                    groupChanged = true;
+                                    break;
+                                }
+                            }
+                        }
                     }
                     
-                    block.textContent = `${density.s} ${this.formatUSD(density.u)} (${this.formatDuration(density.d)})`;
-                    block.title = `${density.s} | ${density.t === 'L' ? 'LONG' : 'SHORT'}\nОбъём: ${this.formatUSD(density.u)}\nЦена: ${density.p}\nОтклонение: ${density.pct.toFixed(2)}%\nДлительность: ${this.formatDuration(density.d)}`;
-                    block.classList.toggle('long', density.t === 'L');
-                    block.classList.toggle('short', density.t === 'S');
-
-                    const topPercent = 50 - (density.pct / maxDev * 50);
-                    block.style.top = `${topPercent}%`;
-                    
-                    existingBlocks.delete(key);
+                    groups.push(group);
                 }
                 
-                existingBlocks.forEach(block => block.remove());
+                return groups;
+            }
+            
+            blocksOverlap(block1, block2, blockHeightPercent) {
+                const margin = blockHeightPercent * 0.1; // Небольшой отступ
+                const block1Top = block1.topPercent - blockHeightPercent/2;
+                const block1Bottom = block1.topPercent + blockHeightPercent/2;
+                const block2Top = block2.topPercent - blockHeightPercent/2;
+                const block2Bottom = block2.topPercent + blockHeightPercent/2;
+                
+                return !(block1Bottom + margin < block2Top || block2Bottom + margin < block1Top);
+            }
+            
+            createAndPositionBlocks(lane, group, maxDev) {
+                const groupSize = group.length;
+                
+                if (groupSize === 1) {
+                    // Одиночный блок - обычное позиционирование
+                    const block = this.createBlock(group[0].density, false, 1);
+                    block.style.top = `${group[0].topPercent}%`;
+                    block.style.left = '5px';
+                    block.style.right = '5px';
+                    block.style.width = 'auto';
+                    lane.appendChild(block);
+                } else {
+                    // Группа блоков - размещаем горизонтально
+                    const avgTop = group.reduce((sum, b) => sum + b.topPercent, 0) / groupSize;
+                    const laneWidth = lane.offsetWidth || 200; // Ширина колонки
+                    const availableWidth = laneWidth - 10; // Отступы с краев
+                    
+                    // Определяем минимальную ширину в зависимости от размера группы
+                    let minBlockWidth;
+                    if (groupSize <= 3) {
+                        minBlockWidth = 35; // Для маленьких групп - больше места
+                    } else if (groupSize <= 6) {
+                        minBlockWidth = 25; // Для средних групп - меньше места
+                    } else {
+                        minBlockWidth = 20; // Для больших групп - минимум места
+                    }
+                    
+                    const blockWidth = Math.max(availableWidth / groupSize, minBlockWidth);
+                    
+                    // Проверяем, помещаются ли все блоки в колонку
+                    const maxBlocks = Math.floor(availableWidth / minBlockWidth);
+                    const visibleGroup = groupSize > maxBlocks ? group.slice(0, maxBlocks) : group;
+                    
+                    // Сортируем группу по размеру объема для лучшего отображения
+                    visibleGroup.sort((a, b) => b.density.u - a.density.u);
+                    
+                    visibleGroup.forEach((blockData, index) => {
+                        const block = this.createBlock(blockData.density, true, groupSize);
+                        block.classList.add('grouped');
+                        
+                        // Добавляем класс tiny для очень маленьких блоков
+                        if (blockWidth <= 22) {
+                            block.classList.add('tiny');
+                        }
+                        
+                        const leftPos = 5 + (index * blockWidth);
+                        block.style.top = `${avgTop}%`;
+                        block.style.left = `${leftPos}px`;
+                        block.style.width = `${blockWidth - 2}px`;
+                        block.style.right = 'auto';
+                        
+                        // Добавляем индикатор скрытых блоков для больших групп
+                        if (index === visibleGroup.length - 1 && groupSize > maxBlocks) {
+                            const hiddenCount = groupSize - maxBlocks;
+                            const indicator = document.createElement('span');
+                            indicator.textContent = `+${hiddenCount}`;
+                            indicator.style.cssText = `
+                                position: absolute;
+                                bottom: -1px;
+                                right: 1px;
+                                background: rgba(0,0,0,0.8);
+                                color: #888;
+                                font-size: 7px;
+                                line-height: 8px;
+                                padding: 0 2px;
+                                border-radius: 2px;
+                                z-index: 10;
+                            `;
+                            block.style.position = 'relative';
+                            block.appendChild(indicator);
+                        }
+                        
+                        lane.appendChild(block);
+                    });
+                }
+            }
+            
+            createBlock(density, isGrouped = false, groupSize = 1) {
+                const block = document.createElement('div');
+                block.className = 'density-block';
+                const key = `${density.s}:${density.t}:${density.p}`;
+                block.dataset.key = key;
+                
+                // Добавляем обработчики событий для кастомного tooltip
+                block.addEventListener('mouseenter', (e) => {
+                    this.showTooltip(e.target.densityData, e);
+                });
+                block.addEventListener('mouseleave', () => {
+                    this.hideTooltip();
+                });
+                block.addEventListener('mousemove', (e) => {
+                    if (this.tooltip.classList.contains('visible')) {
+                        this.showTooltip(e.target.densityData, e);
+                    }
+                });
+                
+                // Обновляем данные для tooltip
+                block.densityData = density;
+                
+                // Форматируем текст в зависимости от группировки
+                if (isGrouped) {
+                    if (groupSize > 3) {
+                        // Для групп больше 3 - только тикер
+                        block.textContent = density.s;
+                    } else {
+                        // Для групп 2-3 - тикер + объем
+                        block.textContent = `${density.s} ${this.formatUSD(density.u)}`;
+                    }
+                } else {
+                    // Для обычных блоков - полный формат
+                    block.textContent = `${density.s} ${this.formatUSD(density.u)} (${this.formatDuration(density.d)})`;
+                }
+                
+                block.classList.toggle('long', density.t === 'L');
+                block.classList.toggle('short', density.t === 'S');
+                
+                return block;
             }
             
             formatUSD(value) {
@@ -954,6 +1247,46 @@ async def get_orders_page() -> HTMLResponse:
                     return `${minutes}м ${secs}с`;
                 }
                 return `${seconds}с`;
+            }
+
+            showTooltip(density, event) {
+                clearTimeout(this.tooltipTimer);
+                
+                // Заполняем содержимое tooltip
+                this.tooltip.querySelector('.tooltip-ticker').textContent = density.s;
+                
+                const typeEl = this.tooltip.querySelector('.tooltip-type');
+                typeEl.textContent = density.t === 'L' ? 'LONG' : 'SHORT';
+                typeEl.className = `tooltip-type ${density.t === 'L' ? 'long' : 'short'}`;
+                
+                this.tooltip.querySelector('.tooltip-volume').textContent = this.formatUSD(density.u);
+                this.tooltip.querySelector('.tooltip-price').textContent = density.p;
+                this.tooltip.querySelector('.tooltip-deviation').textContent = `${density.pct.toFixed(2)}%`;
+                this.tooltip.querySelector('.tooltip-duration').textContent = this.formatDuration(density.d);
+                
+                // Позиционируем tooltip
+                const rect = event.target.getBoundingClientRect();
+                let left = event.clientX + 15;
+                let top = event.clientY - this.tooltip.offsetHeight / 2;
+                
+                // Корректируем позицию, чтобы tooltip не выходил за границы экрана
+                if (left + this.tooltip.offsetWidth > window.innerWidth) {
+                    left = event.clientX - this.tooltip.offsetWidth - 15;
+                }
+                if (top < 0) top = 10;
+                if (top + this.tooltip.offsetHeight > window.innerHeight) {
+                    top = window.innerHeight - this.tooltip.offsetHeight - 10;
+                }
+                
+                this.tooltip.style.left = `${left}px`;
+                this.tooltip.style.top = `${top}px`;
+                this.tooltip.classList.add('visible');
+            }
+
+            hideTooltip() {
+                this.tooltipTimer = setTimeout(() => {
+                    this.tooltip.classList.remove('visible');
+                }, 100);
             }
         }
 
@@ -1059,6 +1392,9 @@ async def get_orders_page() -> HTMLResponse:
         
         // --- Init ---
         document.addEventListener('DOMContentLoaded', () => {
+            // Инициализируем tooltip после загрузки DOM
+            densityManager.tooltip = document.getElementById('customTooltip');
+            
             densityManager.updateUiSettings();
 
             ['minSize', 'maxDeviation', 'minDuration', 'mult1', 'mult2'].forEach(id => {
