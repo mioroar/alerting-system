@@ -69,13 +69,33 @@ class OrderListenerManager(BaseListenerManager[OrderListener]):
             "min_duration": min_duration,
         }
         
-        # Вызываем базовый метод
-        listener = await super().add_listener(order_params, user_id)
+        cid = self.get_condition_id(order_params)
         
-        # Устанавливаем специфичные для order параметры
-        listener.set_order_params(size_usd, max_percent, min_duration)
+        if cid not in self._listeners:
+            from db.logic import get_pool
+            import asyncio
+            
+            listener = OrderListener(
+                cid,
+                direction=order_params["direction"],
+                percent=order_params["percent"],
+                interval=order_params["interval"],
+                window_sec=order_params["window_sec"],
+                size_usd=size_usd,
+                max_percent=max_percent,
+                min_duration=min_duration,
+            )
+            self._listeners[cid] = listener
+
+            db_pool = await get_pool()
+            self._tasks[cid] = asyncio.create_task(
+                self._run_listener_periodically(listener, db_pool)
+            )
         
-        return listener
+        if user_id is not None:
+            self._listeners[cid].add_subscriber(user_id)
+        
+        return self._listeners[cid]
 
 
 # Глобальный экземпляр менеджера

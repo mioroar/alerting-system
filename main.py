@@ -13,6 +13,8 @@ from fastapi.responses import FileResponse
 from config import logger
 from api.alerts import router as alerts_router
 from api.ws import router as ws_router
+from api.densities import router as densities_router
+from api.density_broadcaster import broadcaster
 from modules.price.price import main as price_main
 from modules.volume_change.volume import main as volume_change_main
 from modules.oi.oi import main as oi_main
@@ -67,7 +69,7 @@ app.add_middleware(
 
 app.include_router(alerts_router, tags=["alerts"])
 app.include_router(ws_router, prefix="/ws", tags=["websocket"])
-
+app.include_router(densities_router, tags=["densities"])
 
 async def alert_processing_loop() -> None:
     """Основной цикл обработки алертов."""
@@ -78,7 +80,8 @@ async def alert_processing_loop() -> None:
         asyncio.create_task(funding_main()),
         asyncio.create_task(order_main()),
         asyncio.create_task(order_num_main()),
-        asyncio.create_task(composite_loop())
+        asyncio.create_task(composite_loop()),
+        asyncio.create_task(broadcaster.broadcast_loop())
     ]
     
     try:

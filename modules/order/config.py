@@ -10,6 +10,9 @@ ORDER_TRACKER_BATCH_INTERVAL: Final[int] = 5     # Интервал записи
 MIN_ORDER_SIZE_USD: Final[int] = 100_000          # Минимальный размер ордера для отслеживания
 MAX_PRICE_DEVIATION_PERCENT: Final[float] = 10.0 # Максимальное отклонение от цены (±10%)
 
+# Фильтр времени плотности
+DENSITY_TIME_FILTER_MINUTES: Final[int] = 1  # Минимальное время жизни плотности в минутах
+
 # Кэш данных
 ORDER_CACHE_TTL_SEC: Final[int] = 300  # 5 минут
 TICKER_CACHE: Dict[str, Dict[str, Any]] = {}  # Кэш текущих цен

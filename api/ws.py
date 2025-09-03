@@ -258,6 +258,820 @@ async def broadcast_message(message: str, message_type: str = "announcement") ->
         "type": message_type
     }
 
+@router.get("/orders")
+async def get_orders_page() -> HTMLResponse:
+    html = """
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта плотностей ордеров</title>
+    <script crossorigin src="https://unpkg.com/@msgpack/msgpack"></script>
+    <style>
+        :root {
+            --bg-main: #0d0d0d;
+            --bg-panel: #1a1a1a;
+            --bg-input: #0d0d0d;
+            --border-color: #2a2a2a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-green: #238636;
+            --accent-red: #DA3633;
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background: var(--bg-main);
+            color: var(--text-primary);
+            overflow: hidden;
+            font-size: 13px;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* --- Панель настроек --- */
+        .settings-panel {
+            width: 280px;
+            min-width: 280px;
+            background: var(--bg-panel);
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .settings-header {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: var(--text-primary);
+        }
+
+        .settings-group {
+            margin-bottom: 20px;
+        }
+
+        .settings-group h3 {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .input-group input,
+        .input-group select,
+        .blacklist-input-row input,
+        .custom-ticker-row input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus,
+        .blacklist-input-row input:focus,
+        .custom-ticker-row input:focus {
+            outline: none;
+            border-color: #3a3a3a;
+            background: #1a1a1a;
+        }
+
+        .multiplier-inputs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .multiplier-inputs input {
+            text-align: center;
+        }
+        
+        .blacklist-input-row, .custom-ticker-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .btn-add {
+            padding: 8px 16px;
+            background-color: #2a2a2a;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .btn-add:hover {
+            background-color: #3a3a3a;
+        }
+
+        #customTickersContainer, #blacklistTags {
+            margin-top: 10px;
+        }
+
+        .custom-ticker-item, .blacklist-tag {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            background: var(--bg-input);
+            border-radius: 6px;
+            font-size: 12px;
+            margin-bottom: 6px;
+            color: white;
+        }
+
+        .custom-ticker-item input {
+            background: black;
+            color: white;
+            border: 1px solid #333;
+            padding: 2px 4px;
+            border-radius: 3px;
+            width: 80px;
+        }
+
+        .custom-ticker-item span, .blacklist-tag span {
+            flex-grow: 1;
+        }
+        
+        .custom-ticker-item input {
+            width: 80px;
+            text-align: right;
+            background: #0d0d0d;
+            padding: 4px 8px;
+        }
+
+        .remove-btn {
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-weight: bold;
+        }
+        .remove-btn:hover {
+            color: var(--accent-red);
+        }
+
+        /* --- Основной контент --- */
+        .main-content {
+            flex: 1;
+            min-width: 400px;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        .main-header {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 15px;
+            padding: 5px 10px;
+            flex-shrink: 0;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-red);
+        }
+        .status-indicator.connected {
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(35, 134, 54, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(35, 134, 54, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(35, 134, 54, 0); }
+        }
+
+        .header-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 5px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .header-btn:hover {
+            background-color: var(--bg-panel);
+        }
+        
+        .legend {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+            border-left: 1px solid var(--border-color);
+            padding-left: 15px;
+        }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .legend-color { width: 10px; height: 10px; }
+        .legend-color.short { background: var(--accent-red); }
+        .legend-color.long { background: var(--accent-green); }
+
+        .chart-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .column-headers {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .header-spacer {
+             width: 60px;
+             flex-shrink: 0;
+             border-right: 1px solid var(--border-color);
+        }
+        .header-item {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        .header-item:not(:last-child) {
+            border-right: 1px solid var(--border-color);
+        }
+        
+        .chart-content {
+            flex-grow: 1;
+            display: flex;
+            position: relative;
+        }
+        
+        .deviation-axis {
+            width: 60px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-right: 1px solid var(--border-color);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .heatmap-container {
+            flex-grow: 1;
+            display: flex;
+            position: relative;
+        }
+        
+        .center-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            opacity: 0.5;
+            z-index: 0;
+        }
+        
+        .density-lane {
+            flex: 1;
+            position: relative;
+            height: 100%;
+        }
+        .density-lane:not(:last-child) {
+            border-right: 1px solid var(--border-color);
+        }
+
+        .density-block {
+            position: absolute;
+            left: 5px;
+            right: 5px;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transform: translateY(-50%);
+            transition: top 0.3s ease, background-color 0.3s ease;
+            z-index: 1;
+        }
+        .density-block.long {
+            background-color: rgba(35, 134, 54, 0.5);
+            border: 1px solid rgba(35, 134, 54, 0.8);
+        }
+        .density-block.short {
+            background-color: rgba(218, 54, 51, 0.5);
+            border: 1px solid rgba(218, 54, 51, 0.8);
+        }
+        .density-block:hover {
+             z-index: 10;
+             background-color: #3a3a3a;
+             border-color: #4a4a4a;
+        }
+
+        .empty-state-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-secondary);
+            display: none; /* Hidden by default */
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Основной контент -->
+        <main class="main-content">
+            <header class="main-header">
+                <div class="connection-status">
+                    <div class="status-indicator" id="connectionStatus"></div>
+                    <span id="connectionText">Отключено</span>
+                </div>
+                <div class="header-controls">
+                    <button class="header-btn" id="settingsBtn" style="display: none;">⚙️</button>
+                    <button class="header-btn connect-btn" id="connectBtn" onclick="densityManager.connect()">Подключить</button>
+                </div>
+                <div class="legend">
+                    <div class="legend-item"><span class="legend-color short"></span> SHORT (продажа)</div>
+                    <div class="legend-item"><span class="legend-color long"></span> LONG (покупка)</div>
+                </div>
+            </header>
+            
+            <div class="chart-area">
+                <div class="column-headers">
+                    <div class="header-spacer"></div>
+                    <div class="header-item" id="col-header-1">x1</div>
+                    <div class="header-item" id="col-header-2">x2</div>
+                    <div class="header-item" id="col-header-3">x3</div>
+                </div>
+                <div class="chart-content">
+                    <div class="deviation-axis" id="deviation-axis"></div>
+                    <div class="heatmap-container">
+                        <div class="center-line"></div>
+                        <div class="density-lane" id="lane1"></div>
+                        <div class="density-lane" id="lane2"></div>
+                        <div class="density-lane" id="lane3"></div>
+                        <div class="empty-state-message" id="empty-state">Нет данных для отображения</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Панель настроек -->
+        <div class="settings-panel">
+            <h2 class="settings-header">Карта плотностей ордеров</h2>
+            
+            <div class="settings-group">
+                <h3>Минимальный объём (USD)</h3>
+                <div class="input-group">
+                    <input type="number" id="minSize" value="10000000" step="100000">
+                </div>
+            </div>
+            
+            <div class="settings-group">
+                <h3>Множители объёмов</h3>
+                <div class="multiplier-inputs" style="display: flex; flex-direction: column; gap: 8px;">
+                    <input type="number" id="mult1" value="2" step="0.5" min="1.1" style="width: 120px; padding: 4px 8px; background: #0d0d0d; color: white; border: 1px solid #333;">
+                    <input type="number" id="mult2" value="3" step="0.5" min="1" style="width: 120px; padding: 4px 8px; background: #0d0d0d; color: white; border: 1px solid #333;">
+                </div>
+            </div>
+            
+            <div class="settings-group">
+                <h3>Максимальное отклонение (%)</h3>
+                <div class="input-group">
+                    <input type="number" id="maxDeviation" value="10" step="1" min="1" max="10">
+                </div>
+            </div>
+            
+            <div class="settings-group">
+                <h3>Минимальное время плотности (мин)</h3>
+                <div class="input-group">
+                    <input type="number" id="minDuration" value="1" step="1" min="1" max="60">
+                </div>
+            </div>
+            
+            <div class="settings-group">
+                <h3>Блеклист тикеров</h3>
+                <div class="blacklist-input-row">
+                    <input type="text" id="blacklistInput" placeholder="Введите тикер...">
+                    <button class="btn-add" onclick="addToBlacklist()">Добавить</button>
+                </div>
+                <div id="blacklistTags"></div>
+            </div>
+            
+            <div class="settings-group">
+                <h3>Индивидуальные настройки</h3>
+                <div class="custom-ticker-row">
+                    <input type="text" id="customTickerInput" placeholder="Тикер">
+                    <input type="number" id="customSizeInput" placeholder="Объём">
+                    <button class="btn-add" onclick="addCustomTicker()">+</button>
+                </div>
+                <div id="customTickersContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class DensityManager {
+            constructor() {
+                this.densities = new Map(); // key -> density object
+                this.settings = this.loadSettings();
+                this.ws = null;
+                this.reconnectAttempts = 0;
+            }
+
+            loadSettings() {
+                const saved = localStorage.getItem('densitySettingsV2');
+                const defaults = {
+                    minSizeUsd: 10000000,
+                    maxDeviation: 10,
+                    minDuration: 1,
+                    multipliers: [2, 3],
+                    blacklist: [],
+                    customTickers: [],
+                    dataFormat: 'msgpack'
+                };
+                
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    return { ...defaults, ...parsed };
+                }
+                return defaults;
+            }
+
+            saveSettings() {
+                localStorage.setItem('densitySettingsV2', JSON.stringify(this.settings));
+            }
+
+            connect() {
+                if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+                    console.log("[WS] Already connected or connecting.");
+                    return;
+                }
+                const format = this.settings.dataFormat || 'msgpack';
+                const wsUrl = `ws://${window.location.host}/ws/densities?format=${format}`;
+                this.ws = new WebSocket(wsUrl);
+
+                this.ws.onopen = () => {
+                    document.getElementById('connectionStatus').classList.add('connected');
+                    document.getElementById('connectionText').textContent = 'Подключено';
+                    this.reconnectAttempts = 0;
+                    console.log(`[WS] Connected with ${format}`);
+                };
+
+                this.ws.onclose = () => {
+                    document.getElementById('connectionStatus').classList.remove('connected');
+                    document.getElementById('connectionText').textContent = 'Отключено';
+                    if (this.ws) { // Avoid reconnecting after manual disconnect
+                        console.log("[WS] Disconnected. Reconnecting...");
+                        this.reconnect();
+                    }
+                };
+                
+                this.ws.onerror = (error) => {
+                    console.error("[WS] Error:", error);
+                };
+
+                this.ws.onmessage = async (event) => {
+                    try {
+                        let data;
+                        if (event.data instanceof Blob) {
+                            const buffer = await event.data.arrayBuffer();
+                            data = MessagePack.decode(new Uint8Array(buffer));
+                        } else if (typeof event.data === 'string') {
+                           if (event.data === 'pong') return;
+                            data = JSON.parse(event.data);
+                        }
+                        
+                        if(data) this.handleMessage(data);
+
+                    } catch (e) {
+                        console.error("Failed to parse message:", e, event.data);
+                    }
+                };
+            }
+            
+            disconnect() {
+                if (this.ws) {
+                    const tempWs = this.ws;
+                    this.ws = null; // Prevent reconnecting
+                    tempWs.close();
+                    document.getElementById('connectionStatus').classList.remove('connected');
+                    document.getElementById('connectionText').textContent = 'Отключено';
+                    console.log("[WS] Manually disconnected.");
+                }
+            }
+
+            reconnect() {
+                this.reconnectAttempts++;
+                const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+                setTimeout(() => this.connect(), delay);
+            }
+            
+            handleMessage(data) {
+                if (data.type === 'snapshot') {
+                    this.densities.clear();
+                    data.data.forEach(item => {
+                        const key = `${item.s}:${item.t}:${item.p}`;
+                        this.densities.set(key, item);
+                    });
+                } else if (data.type === 'delta') {
+                    data.data.remove?.forEach(key => this.densities.delete(key));
+                    data.data.add?.forEach(item => {
+                        const key = `${item.s}:${item.t}:${item.p}`;
+                        this.densities.set(key, item);
+                    });
+                     data.data.update?.forEach(item => {
+                        const key = `${item.s}:${item.t}:${item.p}`;
+                        this.densities.set(key, item);
+                    });
+                }
+                this.render();
+            }
+
+            updateUiSettings() {
+                document.getElementById('minSize').value = this.settings.minSizeUsd;
+                document.getElementById('maxDeviation').value = this.settings.maxDeviation;
+                document.getElementById('minDuration').value = this.settings.minDuration;
+                document.getElementById('mult1').value = this.settings.multipliers[0];
+                document.getElementById('mult2').value = this.settings.multipliers[1];
+                this.renderBlacklist();
+                this.renderCustomTickers();
+                this.renderDeviationAxis();
+                this.updateColumnHeaders();
+            }
+
+            renderDeviationAxis() {
+                const axis = document.getElementById('deviation-axis');
+                const maxDev = this.settings.maxDeviation;
+                axis.innerHTML = ''; // Clear previous labels
+
+                // Create labels from +maxDev down to -maxDev
+                for (let i = maxDev; i >= -maxDev; i--) {
+                    const span = document.createElement('span');
+                    span.textContent = `${i > 0 ? '+' : ''}${i}%`;
+                    axis.appendChild(span);
+                }
+            }
+
+            updateColumnHeaders() {
+                const minSize = this.settings.minSizeUsd;
+                const [m1, m2] = this.settings.multipliers;
+                const format = (v) => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : `${(v/1e3).toFixed(0)}K`;
+
+                const t1 = minSize * m1;
+                const t2 = minSize * m2;
+
+                document.getElementById('col-header-1').textContent = `x1 (${format(minSize)} - ${format(t1)})`;
+                document.getElementById('col-header-2').textContent = `x2 (${format(t1)} - ${format(t2)})`;
+                document.getElementById('col-header-3').textContent = `x3 (>${format(t2)})`;
+            }
+
+            render() {
+                window.requestAnimationFrame(() => {
+                    const { columns, totalCount } = this.getFilteredDensities();
+                    document.getElementById('empty-state').style.display = totalCount > 0 ? 'none' : 'block';
+
+                    for (let i = 0; i < 3; i++) {
+                        this.renderLane(i + 1, columns[i]);
+                    }
+                });
+            }
+            
+            getFilteredDensities() {
+                const columns = [[], [], []];
+                let totalCount = 0;
+                
+                const blacklistSet = new Set(this.settings.blacklist);
+                const customTickersMap = new Map(this.settings.customTickers);
+
+                for (const density of this.densities.values()) {
+                    if (blacklistSet.has(density.s)) continue;
+                    if (Math.abs(density.pct) > this.settings.maxDeviation) continue;
+
+                    const minSize = customTickersMap.get(density.s) || this.settings.minSizeUsd;
+                    if (density.u < minSize) continue;
+                    
+                    // Фильтрация по минимальному времени плотности (в секундах)
+                    const minDurationSeconds = this.settings.minDuration * 60;
+                    if (density.d < minDurationSeconds) continue;
+
+                    totalCount++;
+                    
+                    const [m1, m2] = this.settings.multipliers;
+                    const t1 = minSize * m1;
+                    const t2 = minSize * m2;
+
+                    if (density.u < t1) columns[0].push(density);
+                    else if (density.u < t2) columns[1].push(density);
+                    else columns[2].push(density);
+                }
+                return { columns, totalCount };
+            }
+
+            renderLane(laneNum, densities) {
+                const lane = document.getElementById(`lane${laneNum}`);
+                const maxDev = this.settings.maxDeviation;
+                
+                const existingBlocks = new Map();
+                lane.querySelectorAll('.density-block').forEach(b => existingBlocks.set(b.dataset.key, b));
+
+                for (const density of densities) {
+                    const key = `${density.s}:${density.t}:${density.p}`;
+                    let block = existingBlocks.get(key);
+
+                    if (!block) {
+                        block = document.createElement('div');
+                        block.className = 'density-block';
+                        block.dataset.key = key;
+                        lane.appendChild(block);
+                    }
+                    
+                    block.textContent = `${density.s} ${this.formatUSD(density.u)} (${this.formatDuration(density.d)})`;
+                    block.title = `${density.s} | ${density.t === 'L' ? 'LONG' : 'SHORT'}\nОбъём: ${this.formatUSD(density.u)}\nЦена: ${density.p}\nОтклонение: ${density.pct.toFixed(2)}%\nДлительность: ${this.formatDuration(density.d)}`;
+                    block.classList.toggle('long', density.t === 'L');
+                    block.classList.toggle('short', density.t === 'S');
+
+                    const topPercent = 50 - (density.pct / maxDev * 50);
+                    block.style.top = `${topPercent}%`;
+                    
+                    existingBlocks.delete(key);
+                }
+                
+                existingBlocks.forEach(block => block.remove());
+            }
+            
+            formatUSD(value) {
+                if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+                if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
+                return value;
+            }
+
+            formatDuration(seconds) {
+                if (seconds >= 3600) {
+                    const hours = Math.floor(seconds / 3600);
+                    const minutes = Math.floor((seconds % 3600) / 60);
+                    return `${hours}ч ${minutes}м`;
+                } else if (seconds >= 60) {
+                    const minutes = Math.floor(seconds / 60);
+                    const secs = seconds % 60;
+                    return `${minutes}м ${secs}с`;
+                }
+                return `${seconds}с`;
+            }
+        }
+
+        const densityManager = new DensityManager();
+
+        function applySettings() {
+            densityManager.settings.minSizeUsd = parseInt(document.getElementById('minSize').value);
+            
+            let maxDev = parseInt(document.getElementById('maxDeviation').value);
+            if (maxDev > 10) {
+                maxDev = 10;
+                document.getElementById('maxDeviation').value = 10;
+            } else if (maxDev < 1) {
+                maxDev = 1;
+                document.getElementById('maxDeviation').value = 1;
+            }
+            densityManager.settings.maxDeviation = maxDev;
+            
+            let minDuration = parseInt(document.getElementById('minDuration').value);
+            if (minDuration > 60) {
+                minDuration = 60;
+                document.getElementById('minDuration').value = 60;
+            } else if (minDuration < 1) {
+                minDuration = 1;
+                document.getElementById('minDuration').value = 1;
+            }
+            densityManager.settings.minDuration = minDuration;
+
+            densityManager.settings.multipliers = [
+                parseFloat(document.getElementById('mult1').value),
+                parseFloat(document.getElementById('mult2').value)
+            ];
+            densityManager.saveSettings();
+            densityManager.updateUiSettings();
+            densityManager.render();
+        }
+        
+        function addToBlacklist() {
+            const input = document.getElementById('blacklistInput');
+            const ticker = input.value.trim().toUpperCase();
+            if (ticker && !densityManager.settings.blacklist.includes(ticker)) {
+                densityManager.settings.blacklist.push(ticker);
+                applySettings();
+                input.value = '';
+            }
+        }
+        function removeFromBlacklist(ticker) {
+            densityManager.settings.blacklist = densityManager.settings.blacklist.filter(t => t !== ticker);
+            applySettings();
+        }
+        function addCustomTicker() {
+            const tickerInput = document.getElementById('customTickerInput');
+            const sizeInput = document.getElementById('customSizeInput');
+            const ticker = tickerInput.value.trim().toUpperCase();
+            const size = parseInt(sizeInput.value);
+            
+            if (ticker && size > 0) {
+                const existing = densityManager.settings.customTickers.findIndex(([t]) => t === ticker);
+                if (existing !== -1) {
+                    densityManager.settings.customTickers[existing][1] = size;
+                } else {
+                    densityManager.settings.customTickers.push([ticker, size]);
+                }
+                applySettings();
+                tickerInput.value = '';
+                sizeInput.value = '';
+            }
+        }
+        function removeCustomTicker(ticker) {
+            densityManager.settings.customTickers = densityManager.settings.customTickers.filter(([t]) => t !== ticker);
+            applySettings();
+        }
+
+        densityManager.renderBlacklist = function() {
+            const container = document.getElementById('blacklistTags');
+            container.innerHTML = this.settings.blacklist.map(ticker => `
+                <div class="blacklist-tag">
+                    <span>${ticker}</span>
+                    <span class="remove-btn" onclick="removeFromBlacklist('${ticker}')">×</span>
+                </div>
+            `).join('');
+        }
+        densityManager.renderCustomTickers = function() {
+            const container = document.getElementById('customTickersContainer');
+            container.innerHTML = this.settings.customTickers.map(([ticker, size]) => `
+                <div class="custom-ticker-item">
+                    <span>${ticker}</span>
+                    <input type="number" value="${size}" onchange="updateCustomTickerSize('${ticker}', this.value)">
+                    <span class="remove-btn" onclick="removeCustomTicker('${ticker}')">×</span>
+                </div>
+            `).join('');
+        }
+        function updateCustomTickerSize(ticker, newSize) {
+             const size = parseInt(newSize);
+             if (ticker && size > 0) {
+                const existing = densityManager.settings.customTickers.findIndex(([t]) => t === ticker);
+                if (existing !== -1) {
+                    densityManager.settings.customTickers[existing][1] = size;
+                    applySettings();
+                }
+            }
+        }
+        
+        // --- Init ---
+        document.addEventListener('DOMContentLoaded', () => {
+            densityManager.updateUiSettings();
+
+            ['minSize', 'maxDeviation', 'minDuration', 'mult1', 'mult2'].forEach(id => {
+                document.getElementById(id).addEventListener('change', applySettings);
+            });
+            
+            densityManager.connect();
+        });
+    </script>
+</body>
+</html>
+    """
+    return HTMLResponse(content=html)
 
 
 @router.get("/demo")
@@ -284,7 +1098,7 @@ async def get_demo_page() -> HTMLResponse:
 <!DOCTYPE html>
 <html>
 <head>
-    <title>🚨 Alerts Dashboard</title>
+    <title>🚨 Alerts Dashboard - Dark Theme</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
@@ -295,10 +1109,10 @@ async def get_demo_page() -> HTMLResponse:
         }
         
         body { 
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0d0d0d;
             min-height: 100vh;
-            color: #333;
+            color: #e0e0e0;
         }
         
         .container {
@@ -312,12 +1126,11 @@ async def get_demo_page() -> HTMLResponse:
         }
         
         .sidebar {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
             padding: 20px;
             height: fit-content;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
         
         .main-content {
@@ -327,51 +1140,55 @@ async def get_demo_page() -> HTMLResponse:
         }
         
         .header {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
             padding: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         
+        .header h1 {
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: 500;
+        }
+        
         .header-controls {
             display: flex;
-            gap: 10px;
+            gap: 15px;
             align-items: center;
         }
         
         .help-btn {
-            background: linear-gradient(135deg, #17a2b8, #138496);
-            color: white;
-            border: none;
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #3a3a3a;
             padding: 8px 16px;
-            border-radius: 20px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            font-size: 13px;
+            transition: all 0.2s ease;
             display: flex;
             align-items: center;
             gap: 5px;
         }
         
         .help-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(23, 162, 184, 0.4);
+            background: #3a3a3a;
+            border-color: #4a4a4a;
         }
         
         .status-indicator {
-            padding: 8px 16px;
-            border-radius: 20px;
-            color: white;
-            font-weight: 600;
-            font-size: 14px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 13px;
             display: flex;
             align-items: center;
             gap: 8px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
         }
         
         .status-indicator::before {
@@ -380,35 +1197,28 @@ async def get_demo_page() -> HTMLResponse:
             height: 8px;
             border-radius: 50%;
             background: currentColor;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
         }
         
         .connected { 
-            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: #4CAF50;
         }
         
         .disconnected { 
-            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: #f44336;
         }
         
         .section {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
             padding: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
         
         .section h3 {
             margin-bottom: 15px;
-            color: #2c3e50;
-            font-size: 18px;
-            font-weight: 600;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 500;
         }
         
         .form-group {
@@ -417,67 +1227,78 @@ async def get_demo_page() -> HTMLResponse:
         
         .form-group label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #555;
-        }
-        
-        input, button {
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.3s ease;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #a0a0a0;
+            font-weight: 400;
         }
         
         input {
             width: 100%;
-            background: white;
+            padding: 8px 12px;
+            background: #0d0d0d;
+            border: 1px solid #2a2a2a;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 13px;
+            transition: all 0.2s ease;
         }
         
         input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #3a3a3a;
+            background: #1a1a1a;
         }
         
         button {
-            cursor: pointer;
-            border: none;
-            color: white;
-            font-weight: 600;
-            background: linear-gradient(135deg, #667eea, #764ba2);
             width: 100%;
+            padding: 8px 16px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
             margin-top: 5px;
         }
         
         button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            background: #3a3a3a;
+            border-color: #4a4a4a;
         }
         
         .btn-danger {
-            background: linear-gradient(135deg, #f44336, #d32f2f);
+            background: rgba(244, 67, 54, 0.1);
+            border-color: rgba(244, 67, 54, 0.3);
+            color: #f44336;
         }
         
         .btn-danger:hover {
-            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
+            background: rgba(244, 67, 54, 0.2);
+            border-color: rgba(244, 67, 54, 0.5);
         }
         
         .btn-success {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
+            background: rgba(76, 175, 80, 0.1);
+            border-color: rgba(76, 175, 80, 0.3);
+            color: #4CAF50;
         }
         
         .btn-success:hover {
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+            background: rgba(76, 175, 80, 0.2);
+            border-color: rgba(76, 175, 80, 0.5);
         }
         
         .btn-secondary {
-            background: linear-gradient(135deg, #6c757d, #5a6268);
+            background: #2a2a2a;
+            border-color: #3a3a3a;
+            color: #a0a0a0;
         }
         
         .btn-secondary:hover {
-            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+            background: #3a3a3a;
+            border-color: #4a4a4a;
         }
         
         .btn-small {
@@ -496,39 +1317,39 @@ async def get_demo_page() -> HTMLResponse:
             top: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(5px);
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
         }
         
         .modal-content {
-            background: white;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
             margin: 2% auto;
             padding: 0;
-            border-radius: 20px;
+            border-radius: 8px;
             width: 95%;
             max-width: 1200px;
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             animation: modalSlideIn 0.3s ease-out;
         }
         
         @keyframes modalSlideIn {
             from {
-                transform: translateY(-50px) scale(0.9);
+                transform: translateY(-30px);
                 opacity: 0;
             }
             to {
-                transform: translateY(0) scale(1);
+                transform: translateY(0);
                 opacity: 1;
             }
         }
         
         .modal-header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
+            background: #0d0d0d;
+            border-bottom: 1px solid #2a2a2a;
+            color: #ffffff;
             padding: 20px 30px;
-            border-radius: 20px 20px 0 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -536,14 +1357,15 @@ async def get_demo_page() -> HTMLResponse:
         
         .modal-header h2 {
             margin: 0;
-            font-size: 1.8em;
+            font-size: 20px;
+            font-weight: 500;
         }
         
         .close-btn {
             background: none;
             border: none;
-            color: white;
-            font-size: 2em;
+            color: #a0a0a0;
+            font-size: 24px;
             cursor: pointer;
             width: auto;
             margin: 0;
@@ -552,9 +1374,7 @@ async def get_demo_page() -> HTMLResponse:
         }
         
         .close-btn:hover {
-            opacity: 0.7;
-            transform: none;
-            box-shadow: none;
+            color: #ffffff;
         }
         
         .modal-body {
@@ -566,33 +1386,31 @@ async def get_demo_page() -> HTMLResponse:
         }
 
         .section-title {
-            font-size: 1.8em;
-            color: #2c3e50;
+            font-size: 18px;
+            color: #ffffff;
             margin-bottom: 20px;
             padding-bottom: 10px;
-            border-bottom: 3px solid #667eea;
-            font-weight: 600;
+            border-bottom: 1px solid #2a2a2a;
+            font-weight: 500;
         }
 
         .modules-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 25px;
+            gap: 20px;
             margin-bottom: 30px;
         }
 
         .module-card {
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-            border-left: 5px solid #667eea;
+            background: #0d0d0d;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
             transition: all 0.3s ease;
         }
 
         .module-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+            border-color: #3a3a3a;
         }
 
         .module-header-help {
@@ -603,44 +1421,42 @@ async def get_demo_page() -> HTMLResponse:
         }
 
         .module-name {
-            font-size: 1.4em;
-            font-weight: 700;
-            color: #2c3e50;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-size: 16px;
+            font-weight: 500;
+            color: #4CAF50;
         }
 
         .module-type {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.8em;
-            font-weight: 600;
+            background: #2a2a2a;
+            color: #a0a0a0;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 400;
         }
 
         .module-description {
-            color: #555;
+            color: #a0a0a0;
             margin-bottom: 20px;
             line-height: 1.6;
+            font-size: 13px;
         }
 
         .syntax-box {
-            background: #2c3e50;
-            color: #ecf0f1;
+            background: #0d0d0d;
+            border: 1px solid #2a2a2a;
+            color: #e0e0e0;
             padding: 15px;
-            border-radius: 8px;
-            font-family: 'SF Mono', Monaco, monospace;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 12px;
             margin: 15px 0;
-            position: relative;
             overflow-x: auto;
         }
 
         .syntax-title {
-            color: #3498db;
-            font-weight: 600;
+            color: #4CAF50;
+            font-weight: 500;
             margin-bottom: 8px;
         }
 
@@ -648,47 +1464,58 @@ async def get_demo_page() -> HTMLResponse:
             width: 100%;
             border-collapse: collapse;
             margin: 15px 0;
-            background: white;
-            border-radius: 8px;
+            background: #0d0d0d;
+            border: 1px solid #2a2a2a;
+            border-radius: 4px;
             overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
 
         .param-table th,
         .param-table td {
-            padding: 12px 15px;
+            padding: 10px 15px;
             text-align: left;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid #2a2a2a;
         }
 
         .param-table th {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            font-weight: 600;
-            font-size: 0.9em;
+            background: #1a1a1a;
+            color: #ffffff;
+            font-weight: 500;
+            font-size: 12px;
+        }
+
+        .param-table tr:last-child td {
+            border-bottom: none;
         }
 
         .param-table tr:hover {
-            background: #f8f9fa;
+            background: #1a1a1a;
         }
 
         .param-name {
-            font-weight: 600;
-            color: #e74c3c;
+            font-weight: 500;
+            color: #f44336;
             font-family: monospace;
+            font-size: 12px;
         }
 
         .param-type {
-            color: #3498db;
+            color: #4CAF50;
             font-style: italic;
+            font-size: 12px;
+        }
+
+        .param-table td {
+            font-size: 12px;
+            color: #a0a0a0;
         }
 
         .operators-section {
-            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
-            border-radius: 15px;
-            padding: 25px;
+            background: #0d0d0d;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
             margin-bottom: 30px;
-            border-left: 5px solid #ffc107;
         }
 
         .operators-grid {
@@ -698,84 +1525,123 @@ async def get_demo_page() -> HTMLResponse:
         }
 
         .operator-card {
-            background: white;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
         }
 
         .operator-symbol {
-            font-size: 2em;
+            font-size: 24px;
             font-weight: bold;
-            color: #e74c3c;
+            color: #f44336;
             margin-bottom: 10px;
         }
 
+        .operator-card h4 {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .operator-card p {
+            color: #a0a0a0;
+            font-size: 12px;
+        }
+
+        .operator-card small {
+            display: block;
+            color: #808080;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+
         .examples-section {
-            background: linear-gradient(135deg, #e8f5e8, #d4edda);
-            border-radius: 15px;
-            padding: 25px;
-            border-left: 5px solid #28a745;
+            background: #0d0d0d;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .examples-section h3 {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 15px;
         }
 
         .example-box {
-            background: #2c3e50;
-            color: #ecf0f1;
-            border-radius: 8px;
+            background: #0d0d0d;
+            border: 1px solid #2a2a2a;
+            border-radius: 4px;
             margin: 10px 0;
             font-family: monospace;
-            position: relative;
+            font-size: 12px;
             overflow: hidden;
         }
 
         .example-content {
-            padding: 15px;
+            padding: 12px;
+            color: #e0e0e0;
         }
 
         .example-comment {
-            color: #95a5a6;
+            color: #606060;
             font-style: italic;
         }
 
         .copy-btn-modal {
-            background: #3498db;
-            color: white;
+            background: #2a2a2a;
+            color: #a0a0a0;
             border: none;
-            padding: 8px 15px;
-            border-radius: 0 0 8px 8px;
+            border-top: 1px solid #2a2a2a;
+            padding: 6px 12px;
             cursor: pointer;
-            font-size: 0.75em;
-            opacity: 0.9;
-            transition: opacity 0.3s;
+            font-size: 11px;
+            transition: all 0.2s;
             width: 100%;
-            border-top: 1px solid rgba(255,255,255,0.1);
         }
 
         .copy-btn-modal:hover {
-            opacity: 1;
+            background: #3a3a3a;
+            color: #e0e0e0;
         }
 
         .warning-box {
-            background: linear-gradient(135deg, #ffe6e6, #ffcccc);
-            border-left: 5px solid #dc3545;
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            border-left: 3px solid #f44336;
             padding: 15px;
-            border-radius: 8px;
+            border-radius: 4px;
             margin: 15px 0;
+            color: #e0e0e0;
         }
 
         .info-box {
-            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-            border-left: 5px solid #2196F3;
+            background: rgba(33, 150, 243, 0.1);
+            border: 1px solid rgba(33, 150, 243, 0.3);
+            border-left: 3px solid #2196F3;
             padding: 15px;
-            border-radius: 8px;
+            border-radius: 4px;
             margin: 15px 0;
+            color: #e0e0e0;
+            font-size: 13px;
+        }
+
+        .info-box code {
+            background: #0d0d0d;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #4CAF50;
         }
 
         .highlight {
-            background: #fff3cd;
+            background: rgba(255, 193, 7, 0.2);
             padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: 600;
+            border-radius: 3px;
+            font-weight: 500;
         }
         
         /* Existing styles for alerts dashboard */
@@ -788,32 +1654,56 @@ async def get_demo_page() -> HTMLResponse:
             padding-right: 10px;
         }
         
+        .alerts-grid::-webkit-scrollbar,
+        .triggered-alerts::-webkit-scrollbar,
+        .my-alerts-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .alerts-grid::-webkit-scrollbar-track,
+        .triggered-alerts::-webkit-scrollbar-track,
+        .my-alerts-list::-webkit-scrollbar-track {
+            background: #0d0d0d;
+            border-radius: 4px;
+        }
+        
+        .alerts-grid::-webkit-scrollbar-thumb,
+        .triggered-alerts::-webkit-scrollbar-thumb,
+        .my-alerts-list::-webkit-scrollbar-thumb {
+            background: #3a3a3a;
+            border-radius: 4px;
+        }
+        
+        .alerts-grid::-webkit-scrollbar-thumb:hover,
+        .triggered-alerts::-webkit-scrollbar-thumb:hover,
+        .my-alerts-list::-webkit-scrollbar-thumb:hover {
+            background: #4a4a4a;
+        }
+        
         .alert-card {
-            background: white;
-            border-radius: 12px;
+            background: #0d0d0d;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
             padding: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            border-left: 4px solid #667eea;
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
         }
         
         .alert-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            border-color: #3a3a3a;
         }
         
         .alert-card.triggered {
             animation: alertTrigger 3s ease-in-out;
-            border-left-color: #ff4444;
+            border-color: #f44336;
         }
         
         @keyframes alertTrigger {
             0% { transform: scale(1); }
-            10% { transform: scale(1.05); box-shadow: 0 0 30px rgba(255, 68, 68, 0.6); }
+            10% { transform: scale(1.02); box-shadow: 0 0 20px rgba(244, 67, 54, 0.3); }
             20% { transform: scale(1); }
-            30% { transform: scale(1.05); box-shadow: 0 0 30px rgba(255, 68, 68, 0.6); }
+            30% { transform: scale(1.02); box-shadow: 0 0 20px rgba(244, 67, 54, 0.3); }
             100% { transform: scale(1); }
         }
         
@@ -824,24 +1714,31 @@ async def get_demo_page() -> HTMLResponse:
             margin-bottom: 15px;
         }
         
+        .alert-header h4 {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
         .alert-id {
             font-family: 'Courier New', monospace;
-            font-size: 12px;
-            color: #666;
-            background: #f5f5f5;
+            font-size: 11px;
+            color: #808080;
+            background: #1a1a1a;
             padding: 4px 8px;
             border-radius: 4px;
+            border: 1px solid #2a2a2a;
         }
         
         .alert-expression {
             font-family: 'Courier New', monospace;
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
             padding: 12px;
-            border-radius: 8px;
-            font-size: 14px;
-            color: #2c3e50;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #4CAF50;
             margin: 10px 0;
-            border: 1px solid #dee2e6;
         }
         
         .alert-stats {
@@ -850,7 +1747,7 @@ async def get_demo_page() -> HTMLResponse:
             align-items: center;
             margin: 10px 0;
             font-size: 12px;
-            color: #666;
+            color: #808080;
         }
         
         .alert-actions {
@@ -869,7 +1766,7 @@ async def get_demo_page() -> HTMLResponse:
         .blacklist-section {
             margin-top: 15px;
             padding-top: 15px;
-            border-top: 1px solid #eee;
+            border-top: 1px solid #2a2a2a;
         }
         
         .blacklist-header {
@@ -880,17 +1777,18 @@ async def get_demo_page() -> HTMLResponse:
         }
         
         .blacklist-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: #555;
+            font-size: 12px;
+            font-weight: 500;
+            color: #a0a0a0;
         }
         
         .blacklist-count {
             font-size: 11px;
-            color: #999;
-            background: #f8f9fa;
+            color: #606060;
+            background: #1a1a1a;
             padding: 2px 6px;
-            border-radius: 8px;
+            border-radius: 4px;
+            border: 1px solid #2a2a2a;
         }
         
         .blacklist-tags {
@@ -902,10 +1800,11 @@ async def get_demo_page() -> HTMLResponse:
         }
         
         .blacklist-tag {
-            background: linear-gradient(135deg, #dc3545, #c82333);
-            color: white;
+            background: rgba(244, 67, 54, 0.15);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            color: #f44336;
             padding: 3px 8px;
-            border-radius: 12px;
+            border-radius: 4px;
             font-size: 11px;
             font-weight: 500;
             display: flex;
@@ -932,17 +1831,19 @@ async def get_demo_page() -> HTMLResponse:
             flex: 1;
             padding: 6px 8px;
             font-size: 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
             text-transform: uppercase;
+            background: #0d0d0d;
+            border: 1px solid #2a2a2a;
+            border-radius: 4px;
+            color: #e0e0e0;
         }
         
         .add-blacklist-btn {
             padding: 6px 12px;
             font-size: 12px;
-            background: #6c757d;
-            border: none;
-            color: white;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            color: #a0a0a0;
             border-radius: 4px;
             cursor: pointer;
             width: auto;
@@ -950,34 +1851,33 @@ async def get_demo_page() -> HTMLResponse:
         }
         
         .add-blacklist-btn:hover {
-            background: #5a6268;
-            transform: none;
-            box-shadow: none;
+            background: #3a3a3a;
+            border-color: #4a4a4a;
+            color: #e0e0e0;
         }
         
         .triggered-alert {
-            background: white;
-            border-radius: 12px;
+            background: #0d0d0d;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
             padding: 20px;
             margin-bottom: 15px;
-            border-left: 4px solid #ff4444;
-            box-shadow: 0 4px 20px rgba(255, 68, 68, 0.2);
+            border-left: 3px solid #f44336;
             animation: newAlert 0.5s ease-out;
         }
         
         .triggered-alert.filtered {
-            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
             border-left-color: #ffc107;
         }
         
         @keyframes newAlert {
             0% { 
                 opacity: 0; 
-                transform: translateX(100%) scale(0.8); 
+                transform: translateX(20px); 
             }
             100% { 
                 opacity: 1; 
-                transform: translateX(0) scale(1); 
+                transform: translateX(0); 
             }
         }
         
@@ -988,9 +1888,14 @@ async def get_demo_page() -> HTMLResponse:
             margin-bottom: 10px;
         }
         
+        .triggered-header strong {
+            color: #ffffff;
+            font-size: 13px;
+        }
+        
         .triggered-time {
-            font-size: 12px;
-            color: #666;
+            font-size: 11px;
+            color: #606060;
         }
         
         .triggered-tickers {
@@ -1001,42 +1906,53 @@ async def get_demo_page() -> HTMLResponse:
         }
         
         .ticker-badge {
-            background: linear-gradient(135deg, #ff4444, #cc0000);
-            color: white;
+            background: rgba(244, 67, 54, 0.15);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            color: #f44336;
             padding: 4px 8px;
-            border-radius: 12px;
+            border-radius: 4px;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 500;
         }
         
         .ticker-badge.filtered {
-            background: linear-gradient(135deg, #ffc107, #e0a800);
-            color: #000;
+            background: rgba(255, 193, 7, 0.15);
+            border-color: rgba(255, 193, 7, 0.3);
+            color: #ffc107;
         }
         
         .filtered-info {
             font-size: 11px;
-            color: #856404;
+            color: #ffc107;
             background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.2);
             padding: 5px 8px;
             border-radius: 4px;
             margin-top: 8px;
         }
         
         .examples {
-            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-            padding: 15px;
-            border-radius: 8px;
+            background: #0d0d0d;
+            border: 1px solid #2a2a2a;
+            padding: 12px;
+            border-radius: 4px;
             margin: 15px 0;
-            font-size: 13px;
-            line-height: 1.4;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #a0a0a0;
+        }
+        
+        .examples strong {
+            color: #e0e0e0;
         }
         
         .examples code {
-            background: rgba(255, 255, 255, 0.8);
+            background: #1a1a1a;
             padding: 2px 6px;
             border-radius: 3px;
             font-family: 'Courier New', monospace;
+            color: #4CAF50;
+            border: 1px solid #2a2a2a;
         }
         
         .my-alerts-list {
@@ -1052,9 +1968,10 @@ async def get_demo_page() -> HTMLResponse:
         
         .no-alerts {
             text-align: center;
-            color: #666;
+            color: #606060;
             padding: 40px 20px;
             font-style: italic;
+            font-size: 13px;
         }
         
         .stats-grid {
@@ -1065,23 +1982,25 @@ async def get_demo_page() -> HTMLResponse:
         }
         
         .stat-card {
-            background: white;
+            background: #0d0d0d;
+            border: 1px solid #2a2a2a;
             padding: 15px;
             border-radius: 8px;
             text-align: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
         
         .stat-value {
             font-size: 24px;
-            font-weight: bold;
-            color: #667eea;
+            font-weight: 500;
+            color: #4CAF50;
         }
         
         .stat-label {
-            font-size: 12px;
-            color: #666;
+            font-size: 11px;
+            color: #808080;
             margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .ws-commands {
@@ -1095,6 +2014,25 @@ async def get_demo_page() -> HTMLResponse:
             min-width: 80px;
             font-size: 12px;
             padding: 8px 12px;
+        }
+        
+        /* Custom scrollbar for modal */
+        .modal-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .modal-content::-webkit-scrollbar-track {
+            background: #0d0d0d;
+            border-radius: 4px;
+        }
+        
+        .modal-content::-webkit-scrollbar-thumb {
+            background: #3a3a3a;
+            border-radius: 4px;
+        }
+        
+        .modal-content::-webkit-scrollbar-thumb:hover {
+            background: #4a4a4a;
         }
         
         @media (max-width: 768px) {
@@ -1642,8 +2580,8 @@ async def get_demo_page() -> HTMLResponse:
                     
                     <div class="warning-box">
                         <strong>Внимание:</strong>
-                        <ul style="margin-left: 20px; margin-top: 10px;">
-                            <li>Модуль <code>funding</code> работает с абсолютным значением ставки (|rate|)</li>
+                        <ul style="margin-left: 20px; margin-top: 10px; list-style-type: disc;">
+                            <li>Модуль <code style="background: #1a1a1a; padding: 2px 4px; border-radius: 3px;">funding</code> работает с абсолютным значением ставки (|rate|)</li>
                             <li>Cooldown применяется к результирующему выражению и работает по каждому тикеру отдельно</li>
                         </ul>
                     </div>
@@ -1964,14 +2902,15 @@ async def get_demo_page() -> HTMLResponse:
                 return alertData;
             }
 
-            const filteredTickers = alertData.tickers.filter(ticker => !blacklist.has(ticker));
+            // Сравниваем в uppercase для корректной фильтрации
+            const filteredTickers = alertData.tickers.filter(ticker => !blacklist.has(ticker.toUpperCase()));
             
             return {
                 ...alertData,
                 tickers: filteredTickers,
                 filtered: filteredTickers.length !== alertData.tickers.length,
                 originalTickers: alertData.tickers,
-                filteredOutTickers: alertData.tickers.filter(ticker => blacklist.has(ticker))
+                filteredOutTickers: alertData.tickers.filter(ticker => blacklist.has(ticker.toUpperCase()))
             };
         }
 
@@ -2000,12 +2939,12 @@ async def get_demo_page() -> HTMLResponse:
             if (data.filtered) {
                 content += `
                     <div class="filtered-info">
-                        ℹ️ Отфильтровано: ${data.filteredOutTickers.join(', ')} (в блеклисте)
+                        ℹ️ Блеклист: ${data.filteredOutTickers.join(', ')}
                     </div>
                 `;
             }
 
-            content += `<div style="font-size: 12px; color: #666;">ID: ${data.alert_id}</div>`;
+            content += `<div style="font-size: 12px; color: #606060;">ID: ${data.alert_id}</div>`;
             
             alertEl.innerHTML = content;
             
@@ -2041,7 +2980,7 @@ async def get_demo_page() -> HTMLResponse:
                 <div class="filtered-info">
                     🚫 Все тикеры (${data.tickers?.length || 0}) находятся в блеклисте для этого алерта
                 </div>
-                <div style="font-size: 12px; color: #666;">ID: ${data.alert_id}</div>
+                <div style="font-size: 12px; color: #606060;">ID: ${data.alert_id}</div>
             `;
             
             // Insert at the beginning
@@ -2109,7 +3048,7 @@ async def get_demo_page() -> HTMLResponse:
             
             // Update tags
             if (blacklist.size === 0) {
-                blacklistTags.innerHTML = '<span style="color: #999; font-size: 11px;">Нет заблокированных тикеров</span>';
+                blacklistTags.innerHTML = '<span style="color: #606060; font-size: 11px;">Нет заблокированных тикеров</span>';
             } else {
                 blacklistTags.innerHTML = Array.from(blacklist).map(ticker => `
                     <span class="blacklist-tag">
@@ -2193,7 +3132,7 @@ async def get_demo_page() -> HTMLResponse:
                             <span>${alert.is_websocket_connected ? '🟢' : '🔴'}</span>
                         </div>
                         ${blacklist.size > 0 ? `
-                            <div style="font-size: 11px; color: #666; margin: 5px 0;">
+                            <div style="font-size: 11px; color: #808080; margin: 5px 0;">
                                 🚫 Блеклист: ${Array.from(blacklist).join(', ')}
                             </div>
                         ` : ''}
@@ -2236,7 +3175,7 @@ async def get_demo_page() -> HTMLResponse:
                             </div>
                             <div class="blacklist-tags">
                                 ${blacklist.size === 0 ? 
-                                    '<span style="color: #999; font-size: 11px;">Нет заблокированных тикеров</span>' :
+                                    '<span style="color: #606060; font-size: 11px;">Нет заблокированных тикеров</span>' :
                                     Array.from(blacklist).map(ticker => `
                                         <span class="blacklist-tag">
                                             ${ticker}
@@ -2369,15 +3308,16 @@ async def get_demo_page() -> HTMLResponse:
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+                background: ${type === 'success' ? 'rgba(76, 175, 80, 0.95)' : type === 'error' ? 'rgba(244, 67, 54, 0.95)' : 'rgba(33, 150, 243, 0.95)'};
                 color: white;
                 padding: 12px 20px;
-                border-radius: 8px;
+                border-radius: 4px;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.2);
                 z-index: 9999;
                 max-width: 300px;
                 word-wrap: break-word;
                 animation: slideIn 0.3s ease-out;
+                font-size: 13px;
             `;
             toast.textContent = message;
             
@@ -2417,4 +3357,296 @@ async def get_demo_page() -> HTMLResponse:
 </body>
 </html>
 """
+    return HTMLResponse(content=html)
+
+from fastapi.responses import HTMLResponse
+
+@router.get("/dashboard", response_class=HTMLResponse)
+async def get_combined_dashboard() -> HTMLResponse:
+    """Возвращает единый дашборд «Алерты + Карта плотностей».
+
+    На странице два iframe:
+        ├─ /demo   – панель композитных алертов
+        └─ /orders – карта плотностей ордеров
+
+    Содержимое обоих модулей остаётся неизменным, так что
+    никакой дублирующей разметки, конфликтов ID и скриптов нет.
+    """
+    html = """
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>🚨 Алерты + 📊 Плотности</title>
+    <style>
+        :root {
+            --bg-main: #0d0d0d;
+            --border-color: #2a2a2a;
+            --resizer-color: #4a4a4a;
+            --resizer-hover: #6a6a6a;
+        }
+        * { margin:0;padding:0;box-sizing:border-box; }
+        body { 
+            background: var(--bg-main); 
+            height:100vh; 
+            overflow:hidden; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        }
+        .dashboard {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+        .panel {
+            height: 100%;
+            overflow: hidden;
+        }
+        .left-panel {
+            flex: 1;
+            min-width: 300px;
+        }
+        .right-panel {
+            flex: 1;
+            min-width: 300px;
+        }
+        .resizer {
+            width: 6px;
+            background: var(--border-color);
+            cursor: col-resize;
+            position: relative;
+            transition: background-color 0.2s ease;
+            flex-shrink: 0;
+        }
+        .resizer:hover {
+            background: var(--resizer-hover);
+        }
+        .resizer::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 30px;
+            background: var(--resizer-color);
+            border-radius: 1px;
+        }
+        .resizer:hover::before {
+            background: var(--resizer-hover);
+        }
+        .resizer.dragging {
+            background: var(--resizer-hover);
+        }
+        .dashboard iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            pointer-events: auto;
+        }
+        .dashboard.resizing iframe {
+            pointer-events: none;
+        }
+        
+        @media (max-width: 1200px) {
+            .dashboard { 
+                flex-direction: column; 
+            }
+            .resizer {
+                width: 100%;
+                height: 6px;
+                cursor: row-resize;
+            }
+            .resizer::before {
+                width: 30px;
+                height: 2px;
+            }
+            .left-panel, .right-panel {
+                min-width: auto;
+                min-height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard" id="dashboard">
+        <div class="panel left-panel" id="leftPanel">
+            <iframe src="/ws/demo" title="Composite Alerts"></iframe>
+        </div>
+        <div class="resizer" id="resizer"></div>
+        <div class="panel right-panel" id="rightPanel">
+            <iframe src="/ws/orders" title="Order Density Map"></iframe>
+        </div>
+    </div>
+
+    <script>
+        class DashboardResizer {
+            constructor() {
+                this.dashboard = document.getElementById('dashboard');
+                this.leftPanel = document.getElementById('leftPanel');
+                this.rightPanel = document.getElementById('rightPanel');
+                this.resizer = document.getElementById('resizer');
+                
+                this.isResizing = false;
+                this.startX = 0;
+                this.startY = 0;
+                this.leftStartWidth = 0;
+                this.rightStartWidth = 0;
+                
+                this.init();
+                this.loadSavedSizes();
+            }
+
+            init() {
+                this.resizer.addEventListener('mousedown', this.handleMouseDown.bind(this));
+                document.addEventListener('mousemove', this.handleMouseMove.bind(this));
+                document.addEventListener('mouseup', this.handleMouseUp.bind(this));
+                
+                // Предотвращаем выделение текста при перетаскивании
+                this.resizer.addEventListener('selectstart', e => e.preventDefault());
+                
+                // Обработка изменения размера окна
+                window.addEventListener('resize', this.handleWindowResize.bind(this));
+            }
+
+            handleMouseDown(e) {
+                this.isResizing = true;
+                this.startX = e.clientX;
+                this.startY = e.clientY;
+                
+                const dashboardRect = this.dashboard.getBoundingClientRect();
+                const leftRect = this.leftPanel.getBoundingClientRect();
+                const rightRect = this.rightPanel.getBoundingClientRect();
+                
+                if (window.innerWidth > 1200) {
+                    // Горизонтальное изменение размера
+                    this.leftStartWidth = leftRect.width;
+                    this.rightStartWidth = rightRect.width;
+                } else {
+                    // Вертикальное изменение размера для мобильных
+                    this.leftStartWidth = leftRect.height;
+                    this.rightStartWidth = rightRect.height;
+                }
+                
+                this.dashboard.classList.add('resizing');
+                this.resizer.classList.add('dragging');
+                document.body.style.cursor = window.innerWidth > 1200 ? 'col-resize' : 'row-resize';
+                
+                e.preventDefault();
+            }
+
+            handleMouseMove(e) {
+                if (!this.isResizing) return;
+                
+                const dashboardRect = this.dashboard.getBoundingClientRect();
+                
+                if (window.innerWidth > 1200) {
+                    // Горизонтальное изменение размера
+                    const deltaX = e.clientX - this.startX;
+                    const newLeftWidth = this.leftStartWidth + deltaX;
+                    const newRightWidth = this.rightStartWidth - deltaX;
+                    
+                    const minWidth = 300;
+                    const maxLeftWidth = dashboardRect.width - minWidth - 6; // 6px для resizer
+                    
+                    if (newLeftWidth >= minWidth && newLeftWidth <= maxLeftWidth) {
+                        const leftFlex = newLeftWidth / dashboardRect.width;
+                        const rightFlex = newRightWidth / dashboardRect.width;
+                        
+                        this.leftPanel.style.flex = `0 0 ${newLeftWidth}px`;
+                        this.rightPanel.style.flex = `0 0 ${newRightWidth}px`;
+                    }
+                } else {
+                    // Вертикальное изменение размера для мобильных
+                    const deltaY = e.clientY - this.startY;
+                    const newLeftHeight = this.leftStartWidth + deltaY;
+                    const newRightHeight = this.rightStartWidth - deltaY;
+                    
+                    const minHeight = 200;
+                    const maxLeftHeight = dashboardRect.height - minHeight - 6;
+                    
+                    if (newLeftHeight >= minHeight && newLeftHeight <= maxLeftHeight) {
+                        this.leftPanel.style.flex = `0 0 ${newLeftHeight}px`;
+                        this.rightPanel.style.flex = `0 0 ${newRightHeight}px`;
+                    }
+                }
+                
+                e.preventDefault();
+            }
+
+            handleMouseUp(e) {
+                if (!this.isResizing) return;
+                
+                this.isResizing = false;
+                this.dashboard.classList.remove('resizing');
+                this.resizer.classList.remove('dragging');
+                document.body.style.cursor = '';
+                
+                this.saveSizes();
+            }
+
+            handleWindowResize() {
+                // Сброс размеров при изменении ориентации
+                this.leftPanel.style.flex = '';
+                this.rightPanel.style.flex = '';
+                this.loadSavedSizes();
+            }
+
+            saveSizes() {
+                const leftRect = this.leftPanel.getBoundingClientRect();
+                const rightRect = this.rightPanel.getBoundingClientRect();
+                const dashboardRect = this.dashboard.getBoundingClientRect();
+                
+                const sizes = {
+                    leftRatio: window.innerWidth > 1200 
+                        ? leftRect.width / dashboardRect.width 
+                        : leftRect.height / dashboardRect.height,
+                    rightRatio: window.innerWidth > 1200 
+                        ? rightRect.width / dashboardRect.width 
+                        : rightRect.height / dashboardRect.height,
+                    orientation: window.innerWidth > 1200 ? 'horizontal' : 'vertical'
+                };
+                
+                localStorage.setItem('dashboardSizes', JSON.stringify(sizes));
+            }
+
+            loadSavedSizes() {
+                const saved = localStorage.getItem('dashboardSizes');
+                if (!saved) return;
+                
+                try {
+                    const sizes = JSON.parse(saved);
+                    const currentOrientation = window.innerWidth > 1200 ? 'horizontal' : 'vertical';
+                    
+                    // Применяем сохранённые размеры только для текущей ориентации
+                    if (sizes.orientation === currentOrientation) {
+                        const dashboardRect = this.dashboard.getBoundingClientRect();
+                        
+                        if (currentOrientation === 'horizontal') {
+                            const leftWidth = dashboardRect.width * sizes.leftRatio;
+                            const rightWidth = dashboardRect.width * sizes.rightRatio;
+                            
+                            this.leftPanel.style.flex = `0 0 ${leftWidth}px`;
+                            this.rightPanel.style.flex = `0 0 ${rightWidth}px`;
+                        } else {
+                            const leftHeight = dashboardRect.height * sizes.leftRatio;
+                            const rightHeight = dashboardRect.height * sizes.rightRatio;
+                            
+                            this.leftPanel.style.flex = `0 0 ${leftHeight}px`;
+                            this.rightPanel.style.flex = `0 0 ${rightHeight}px`;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed to load saved dashboard sizes:', e);
+                }
+            }
+        }
+
+        // Инициализация после загрузки DOM
+        document.addEventListener('DOMContentLoaded', () => {
+            new DashboardResizer();
+        });
+    </script>
+</body>
+</html>
+    """
     return HTMLResponse(content=html)

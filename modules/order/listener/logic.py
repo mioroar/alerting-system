@@ -18,45 +18,36 @@ class OrderListener(Listener):
         percent: float,
         interval: int,
         window_sec: int | None = None,
+        size_usd: float = 1000000.0,
+        max_percent: float = 5.0,
+        min_duration: int = 300,
     ) -> None:
         """Инициализирует слушатель ордеров.
 
         Args:
             condition_id: Уникальный идентификатор условия.
             direction: Направление сравнения ('>' или '<').
-            percent: Размер ордера в USD (используется как временное значение).
+            percent: Размер ордера в USD (используется для совместимости с базовым классом).
             interval: Интервал проверки в секундах.
             window_sec: Длина окна расчёта в секундах.
+            size_usd: Минимальный размер ордера в USD.
+            max_percent: Максимальное отклонение от текущей цены (%).
+            min_duration: Минимальное время жизни ордера в секундах.
         """
         super().__init__(condition_id, direction, percent, interval, window_sec)
         self.matched: list[Tuple[str, float, float, int]] = []
         
         # Специфичные параметры для order
-        self.size_usd: float = 1000000.0
-        self.max_percent: float = 5.0
-        self.min_duration: int = 300
+        self.size_usd: float = size_usd
+        self.max_percent: float = max_percent
+        self.min_duration: int = min_duration
 
     @property
     def period_sec(self) -> int:
         """Возвращает интервал между обновлениями состояния."""
         return self.interval
 
-    def set_order_params(
-        self, 
-        size_usd: float, 
-        max_percent: float, 
-        min_duration: int
-    ) -> None:
-        """Устанавливает специфичные параметры для order-слушателя.
 
-        Args:
-            size_usd: Минимальный размер ордера в USD.
-            max_percent: Максимальное отклонение от текущей цены (%).
-            min_duration: Минимальное время жизни ордера в секундах.
-        """
-        self.size_usd = size_usd
-        self.max_percent = max_percent
-        self.min_duration = min_duration
 
     async def update_state(self, db_pool: asyncpg.Pool) -> None:
         """Обновляет состояние слушателя данными о плотности ордеров.
