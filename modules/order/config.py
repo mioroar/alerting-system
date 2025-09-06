@@ -29,35 +29,35 @@ class OrderDensity(TypedDict):
         symbol (str): Символ торговой пары.
         order_type (str): Тип ордера ("LONG" или "SHORT").
         price (float): Цена уровня.
-        size_usd (float): Размер в USD.
-        timestamp (int): Время последнего обновления (Unix ms).
-        first_seen (int): Время первого появления уровня (Unix ms).
+        current_size_usd (float): Текущий размер в USD.
+        max_size_usd (float): Максимальный размер за всё время в USD.
+        touched (bool): Была ли плотность тронута (уменьшалась).
+        reduction_usd (float): На сколько USD уменьшилась от максимума.
         percent_from_market (float): Процентное отклонение от рыночной цены.
+        first_seen (int): Время первого появления уровня (Unix ms).
+        last_updated (int): Время последнего обновления (Unix ms).
+        is_new (bool): Является ли запись новой (для определения INSERT/UPDATE).
     """
     symbol: str
     order_type: str
     price: float
-    size_usd: float
-    timestamp: int
-    first_seen: int
+    current_size_usd: float
+    max_size_usd: float
+    touched: bool
+    reduction_usd: float
     percent_from_market: float
+    first_seen: int
+    last_updated: int
+    is_new: bool
 
-class OrderDensityRecord(TypedDict):
-    """Запись для вставки в базу данных order_density.
+class DensityDBOperation(TypedDict):
+    """Операция для выполнения в БД.
     
     Attributes:
-        symbol (str): Символ торговой пары.
-        order_type (str): Тип ордера ("LONG" или "SHORT").
-        price (float): Цена уровня.
-        size_usd (float): Размер в USD.
-        percent_from_market (float): Процентное отклонение от рыночной цены.
-        first_seen (int): Время первого появления уровня (Unix ms).
-        duration_sec (int): Время жизни уровня в секундах.
+        operation (str): Тип операции ("INSERT", "UPDATE", "DELETE").
+        data (OrderDensity | None): Данные для операции (None для DELETE).
+        key (tuple): Ключ записи (symbol, price).
     """
-    symbol: str
-    order_type: str
-    price: float
-    size_usd: float
-    percent_from_market: float
-    first_seen: int
-    duration_sec: int
+    operation: str
+    data: OrderDensity | None
+    key: tuple[str, float]

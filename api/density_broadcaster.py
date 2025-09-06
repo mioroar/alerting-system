@@ -85,7 +85,10 @@ class DensityBroadcaster:
         """Готовит snapshot из order_densities."""
         result = {}
         
-        for (symbol, order_type, price), density in order_densities.items():
+        for (symbol, price), density in order_densities.items():
+            # Получаем order_type из самого объекта density
+            order_type = density["order_type"]
+            
             # Создаём уникальный ключ
             key = f"{symbol.upper()}:{order_type[0]}:{price}"
             
@@ -96,7 +99,10 @@ class DensityBroadcaster:
                 "s": symbol.upper(),
                 "t": "L" if order_type == "LONG" else "S",
                 "p": price,
-                "u": density["size_usd"],
+                "u": density["current_size_usd"],  # Текущий размер
+                "max_u": density["max_size_usd"],  # Максимальный размер
+                "touched": density["touched"],  # Была ли тронута
+                "reduction_usd": density["reduction_usd"],  # Сколько съели в USD
                 "pct": round(density["percent_from_market"], 2),
                 "d": duration_sec
             }
@@ -126,9 +132,11 @@ class DensityBroadcaster:
             old_item = old[key]
             new_item = new[key]
             
-            # Проверяем изменения в размере или длительности
+            # Проверяем изменения в размере, длительности или статусе touched
             if (abs(old_item["u"] - new_item["u"]) > 1000 or  # Изменение > $1000
-                abs(old_item["d"] - new_item["d"]) > 10):     # Изменение > 10 сек
+                abs(old_item["d"] - new_item["d"]) > 10 or     # Изменение > 10 сек
+                old_item.get("touched", False) != new_item.get("touched", False) or  # Изменился статус touched
+                abs(old_item.get("reduction_usd", 0) - new_item.get("reduction_usd", 0)) > 1000):  # Изменение разъедания > $1000
                 delta["update"].append(new_item)
         
         return delta

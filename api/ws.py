@@ -597,29 +597,32 @@ async def get_orders_page() -> HTMLResponse:
             font-size: 9px;
             padding: 1px 3px;
             min-height: 14px;
-            overflow: visible; /* Позволяем показывать номера */
+            overflow: visible;
             transition: all 0.2s ease-in-out;
         }
         
         .density-block.grouped:hover {
-            z-index: 11; /* Выше чем обычные блоки при наведении */
+            z-index: 11;
             transform: translateY(-50%) scale(1.05);
         }
         
-        /* Стили для очень маленьких блоков в больших группах */
         .density-block.grouped.tiny {
             font-size: 8px;
             padding: 1px 2px;
             min-height: 12px;
         }
+        
         .density-block.long {
             background-color: rgba(35, 134, 54, 0.5);
             border: 1px solid rgba(35, 134, 54, 0.8);
         }
+        
         .density-block.short {
             background-color: rgba(218, 54, 51, 0.5);
             border: 1px solid rgba(218, 54, 51, 0.8);
         }
+        
+        
         .density-block:hover {
              z-index: 10;
              background-color: #3a3a3a;
@@ -632,7 +635,7 @@ async def get_orders_page() -> HTMLResponse:
             left: 50%;
             transform: translate(-50%, -50%);
             color: var(--text-secondary);
-            display: none; /* Hidden by default */
+            display: none;
         }
 
         /* --- Кастомный Tooltip --- */
@@ -649,7 +652,7 @@ async def get_orders_page() -> HTMLResponse:
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.2s ease;
-            max-width: 200px;
+            max-width: 250px;
             backdrop-filter: blur(10px);
         }
 
@@ -705,6 +708,36 @@ async def get_orders_page() -> HTMLResponse:
             color: var(--text-primary);
             font-weight: 500;
         }
+
+        /* --- Уведомление о копировании --- */
+        .copy-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--accent-green);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 2000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .copy-notification.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* --- Курсор для блоков плотности --- */
+        .density-block {
+            cursor: pointer;
+        }
+        
 
     </style>
 </head>
@@ -808,8 +841,16 @@ async def get_orders_page() -> HTMLResponse:
             <span class="tooltip-type"></span>
         </div>
         <div class="tooltip-row">
-            <span class="tooltip-label">Объём:</span>
+            <span class="tooltip-label">Текущий объём:</span>
             <span class="tooltip-value tooltip-volume"></span>
+        </div>
+        <div class="tooltip-row">
+            <span class="tooltip-label">Макс. объём:</span>
+            <span class="tooltip-value tooltip-max-volume"></span>
+        </div>
+        <div class="tooltip-row tooltip-reduction-row" id="tooltip-reduction-row" style="display: none;">
+            <span class="tooltip-label">Разъедание:</span>
+            <span class="tooltip-value tooltip-reduction"></span>
         </div>
         <div class="tooltip-row">
             <span class="tooltip-label">Цена:</span>
@@ -828,7 +869,7 @@ async def get_orders_page() -> HTMLResponse:
     <script>
         class DensityManager {
             constructor() {
-                this.densities = new Map(); // key -> density object
+                this.densities = new Map();
                 this.settings = this.loadSettings();
                 this.ws = null;
                 this.reconnectAttempts = 0;
@@ -878,7 +919,7 @@ async def get_orders_page() -> HTMLResponse:
                 this.ws.onclose = () => {
                     document.getElementById('connectionStatus').classList.remove('connected');
                     document.getElementById('connectionText').textContent = 'Отключено';
-                    if (this.ws) { // Avoid reconnecting after manual disconnect
+                    if (this.ws) {
                         console.log("[WS] Disconnected. Reconnecting...");
                         this.reconnect();
                     }
@@ -910,7 +951,7 @@ async def get_orders_page() -> HTMLResponse:
             disconnect() {
                 if (this.ws) {
                     const tempWs = this.ws;
-                    this.ws = null; // Prevent reconnecting
+                    this.ws = null;
                     tempWs.close();
                     document.getElementById('connectionStatus').classList.remove('connected');
                     document.getElementById('connectionText').textContent = 'Отключено';
@@ -960,9 +1001,8 @@ async def get_orders_page() -> HTMLResponse:
             renderDeviationAxis() {
                 const axis = document.getElementById('deviation-axis');
                 const maxDev = this.settings.maxDeviation;
-                axis.innerHTML = ''; // Clear previous labels
+                axis.innerHTML = '';
 
-                // Create labels from +maxDev down to -maxDev
                 for (let i = maxDev; i >= -maxDev; i--) {
                     const span = document.createElement('span');
                     span.textContent = `${i > 0 ? '+' : ''}${i}%`;
@@ -1008,7 +1048,6 @@ async def get_orders_page() -> HTMLResponse:
                     const minSize = customTickersMap.get(density.s) || this.settings.minSizeUsd;
                     if (density.u < minSize) continue;
                     
-                    // Фильтрация по минимальному времени плотности (в секундах)
                     const minDurationSeconds = this.settings.minDuration * 60;
                     if (density.d < minDurationSeconds) continue;
 
@@ -1029,12 +1068,10 @@ async def get_orders_page() -> HTMLResponse:
                 const lane = document.getElementById(`lane${laneNum}`);
                 const maxDev = this.settings.maxDeviation;
                 
-                // Удаляем старые блоки
                 lane.querySelectorAll('.density-block').forEach(block => block.remove());
                 
                 if (densities.length === 0) return;
                 
-                // Создаем блоки с позициями
                 const blocks = densities.map(density => {
                     const topPercent = 50 - (density.pct / maxDev * 50);
                     return {
@@ -1046,23 +1083,19 @@ async def get_orders_page() -> HTMLResponse:
                     };
                 });
                 
-                // Сортируем по позиции для более предсказуемой группировки
                 blocks.sort((a, b) => a.topPercent - b.topPercent);
                 
-                // Обнаруживаем и группируем пересекающиеся блоки
                 const groups = this.detectCollisions(blocks);
                 
-                // Создаем DOM элементы и позиционируем их
                 for (const group of groups) {
                     this.createAndPositionBlocks(lane, group, maxDev);
                 }
             }
             
             detectCollisions(blocks) {
-                // Получаем реальную высоту дорожки
                 const lane = document.querySelector('.density-lane');
                 const laneHeight = lane ? lane.offsetHeight : 400;
-                const blockHeight = 18; // Высота блока в пикселях
+                const blockHeight = 18;
                 const pixelsPerPercent = laneHeight / 100;
                 const blockHeightPercent = blockHeight / pixelsPerPercent;
                 
@@ -1075,7 +1108,6 @@ async def get_orders_page() -> HTMLResponse:
                     const group = [blocks[i]];
                     processed.add(i);
                     
-                    // Ищем все блоки, которые пересекаются с текущей группой
                     let groupChanged = true;
                     while (groupChanged) {
                         groupChanged = false;
@@ -1083,7 +1115,6 @@ async def get_orders_page() -> HTMLResponse:
                         for (let j = 0; j < blocks.length; j++) {
                             if (processed.has(j)) continue;
                             
-                            // Проверяем пересечение с любым блоком в группе
                             for (const groupBlock of group) {
                                 if (this.blocksOverlap(blocks[j], groupBlock, blockHeightPercent)) {
                                     group.push(blocks[j]);
@@ -1102,7 +1133,7 @@ async def get_orders_page() -> HTMLResponse:
             }
             
             blocksOverlap(block1, block2, blockHeightPercent) {
-                const margin = blockHeightPercent * 0.1; // Небольшой отступ
+                const margin = blockHeightPercent * 0.1;
                 const block1Top = block1.topPercent - blockHeightPercent/2;
                 const block1Bottom = block1.topPercent + blockHeightPercent/2;
                 const block2Top = block2.topPercent - blockHeightPercent/2;
@@ -1115,7 +1146,6 @@ async def get_orders_page() -> HTMLResponse:
                 const groupSize = group.length;
                 
                 if (groupSize === 1) {
-                    // Одиночный блок - обычное позиционирование
                     const block = this.createBlock(group[0].density, false, 1);
                     block.style.top = `${group[0].topPercent}%`;
                     block.style.left = '5px';
@@ -1123,35 +1153,30 @@ async def get_orders_page() -> HTMLResponse:
                     block.style.width = 'auto';
                     lane.appendChild(block);
                 } else {
-                    // Группа блоков - размещаем горизонтально
                     const avgTop = group.reduce((sum, b) => sum + b.topPercent, 0) / groupSize;
-                    const laneWidth = lane.offsetWidth || 200; // Ширина колонки
-                    const availableWidth = laneWidth - 10; // Отступы с краев
+                    const laneWidth = lane.offsetWidth || 200;
+                    const availableWidth = laneWidth - 10;
                     
-                    // Определяем минимальную ширину в зависимости от размера группы
                     let minBlockWidth;
                     if (groupSize <= 3) {
-                        minBlockWidth = 35; // Для маленьких групп - больше места
+                        minBlockWidth = 35;
                     } else if (groupSize <= 6) {
-                        minBlockWidth = 25; // Для средних групп - меньше места
+                        minBlockWidth = 25;
                     } else {
-                        minBlockWidth = 20; // Для больших групп - минимум места
+                        minBlockWidth = 20;
                     }
                     
                     const blockWidth = Math.max(availableWidth / groupSize, minBlockWidth);
                     
-                    // Проверяем, помещаются ли все блоки в колонку
                     const maxBlocks = Math.floor(availableWidth / minBlockWidth);
                     const visibleGroup = groupSize > maxBlocks ? group.slice(0, maxBlocks) : group;
                     
-                    // Сортируем группу по размеру объема для лучшего отображения
                     visibleGroup.sort((a, b) => b.density.u - a.density.u);
                     
                     visibleGroup.forEach((blockData, index) => {
                         const block = this.createBlock(blockData.density, true, groupSize);
                         block.classList.add('grouped');
                         
-                        // Добавляем класс tiny для очень маленьких блоков
                         if (blockWidth <= 22) {
                             block.classList.add('tiny');
                         }
@@ -1162,7 +1187,6 @@ async def get_orders_page() -> HTMLResponse:
                         block.style.width = `${blockWidth - 2}px`;
                         block.style.right = 'auto';
                         
-                        // Добавляем индикатор скрытых блоков для больших групп
                         if (index === visibleGroup.length - 1 && groupSize > maxBlocks) {
                             const hiddenCount = groupSize - maxBlocks;
                             const indicator = document.createElement('span');
@@ -1189,16 +1213,21 @@ async def get_orders_page() -> HTMLResponse:
             }
             
             createBlock(density, isGrouped = false, groupSize = 1) {
+                console.log('[BLOCK] Creating block for:', density.s, density.u);
                 const block = document.createElement('div');
                 block.className = 'density-block';
                 const key = `${density.s}:${density.t}:${density.p}`;
                 block.dataset.key = key;
                 
-                // Добавляем обработчики событий для кастомного tooltip
+                
+                block.densityData = density;
+                
                 block.addEventListener('mouseenter', (e) => {
+                    console.log('[MOUSE] Mouse enter on block:', e.target.densityData);
                     this.showTooltip(e.target.densityData, e);
                 });
                 block.addEventListener('mouseleave', () => {
+                    console.log('[MOUSE] Mouse leave');
                     this.hideTooltip();
                 });
                 block.addEventListener('mousemove', (e) => {
@@ -1206,21 +1235,17 @@ async def get_orders_page() -> HTMLResponse:
                         this.showTooltip(e.target.densityData, e);
                     }
                 });
+                block.addEventListener('click', (e) => {
+                    this.copyTickerToClipboard(e.target.densityData.s);
+                });
                 
-                // Обновляем данные для tooltip
-                block.densityData = density;
-                
-                // Форматируем текст в зависимости от группировки
                 if (isGrouped) {
                     if (groupSize > 3) {
-                        // Для групп больше 3 - только тикер
                         block.textContent = this.formatTicker(density.s);
                     } else {
-                        // Для групп 2-3 - тикер + объем
                         block.textContent = `${this.formatTicker(density.s)} ${this.formatUSD(density.u)}`;
                     }
                 } else {
-                    // Для обычных блоков - полный формат
                     block.textContent = `${this.formatTicker(density.s)} ${this.formatUSD(density.u)} (${this.formatDuration(density.d)})`;
                 }
                 
@@ -1254,36 +1279,67 @@ async def get_orders_page() -> HTMLResponse:
             }
 
             showTooltip(density, event) {
+                if (!density) {
+                    console.log('[TOOLTIP] No density data');
+                    return;
+                }
+                
                 clearTimeout(this.tooltipTimer);
                 
+                console.log('[TOOLTIP] Showing tooltip for:', density);
+                
                 // Заполняем содержимое tooltip
-                this.tooltip.querySelector('.tooltip-ticker').textContent = density.s;
+                this.tooltip.querySelector('.tooltip-ticker').textContent = density.s || '';
                 
                 const typeEl = this.tooltip.querySelector('.tooltip-type');
                 typeEl.textContent = density.t === 'L' ? 'LONG' : 'SHORT';
                 typeEl.className = `tooltip-type ${density.t === 'L' ? 'long' : 'short'}`;
                 
-                this.tooltip.querySelector('.tooltip-volume').textContent = this.formatUSD(density.u);
-                this.tooltip.querySelector('.tooltip-price').textContent = density.p;
-                this.tooltip.querySelector('.tooltip-deviation').textContent = `${density.pct.toFixed(2)}%`;
-                this.tooltip.querySelector('.tooltip-duration').textContent = this.formatDuration(density.d);
+                // Текущий объём
+                this.tooltip.querySelector('.tooltip-volume').textContent = this.formatUSD(density.u || 0);
+                
+                // Максимальный объём  
+                this.tooltip.querySelector('.tooltip-max-volume').textContent = this.formatUSD(density.max_u || density.u || 0);
+                
+                // Разъедание - показываем только если плотность была тронута
+                const reductionRow = document.getElementById('tooltip-reduction-row');
+                if (density.touched && density.reduction_usd && density.reduction_usd > 0) {
+                    console.log('[TOOLTIP] Showing reduction:', density.reduction_usd);
+                    reductionRow.style.display = 'flex';
+                    const reductionText = `${this.formatUSD(density.reduction_usd)} из ${this.formatUSD(density.max_u || 0)}`;
+                    this.tooltip.querySelector('.tooltip-reduction').textContent = reductionText;
+                } else {
+                    reductionRow.style.display = 'none';
+                }
+                
+                this.tooltip.querySelector('.tooltip-price').textContent = density.p || '';
+                this.tooltip.querySelector('.tooltip-deviation').textContent = `${(density.pct || 0).toFixed(2)}%`;
+                this.tooltip.querySelector('.tooltip-duration').textContent = this.formatDuration(density.d || 0);
                 
                 // Позиционируем tooltip
-                const rect = event.target.getBoundingClientRect();
                 let left = event.clientX + 15;
-                let top = event.clientY - this.tooltip.offsetHeight / 2;
+                let top = event.clientY - 10;
                 
-                // Корректируем позицию, чтобы tooltip не выходил за границы экрана
-                if (left + this.tooltip.offsetWidth > window.innerWidth) {
-                    left = event.clientX - this.tooltip.offsetWidth - 15;
+                // Предварительно показываем для расчёта размеров
+                this.tooltip.style.opacity = '0';
+                this.tooltip.style.display = 'block';
+                
+                const tooltipRect = this.tooltip.getBoundingClientRect();
+                
+                if (left + tooltipRect.width > window.innerWidth) {
+                    left = event.clientX - tooltipRect.width - 15;
                 }
-                if (top < 0) top = 10;
-                if (top + this.tooltip.offsetHeight > window.innerHeight) {
-                    top = window.innerHeight - this.tooltip.offsetHeight - 10;
+                if (top < 0) {
+                    top = 10;
+                }
+                if (top + tooltipRect.height > window.innerHeight) {
+                    top = window.innerHeight - tooltipRect.height - 10;
                 }
                 
                 this.tooltip.style.left = `${left}px`;
                 this.tooltip.style.top = `${top}px`;
+                this.tooltip.style.opacity = '';
+                this.tooltip.style.display = '';
                 this.tooltip.classList.add('visible');
             }
 
@@ -1291,6 +1347,64 @@ async def get_orders_page() -> HTMLResponse:
                 this.tooltipTimer = setTimeout(() => {
                     this.tooltip.classList.remove('visible');
                 }, 100);
+            }
+
+            async copyTickerToClipboard(ticker) {
+                try {
+                    await navigator.clipboard.writeText(ticker);
+                    this.showCopyNotification(ticker);
+                    console.log('[COPY] Ticker copied to clipboard:', ticker);
+                } catch (err) {
+                    console.error('[COPY] Failed to copy ticker:', err);
+                    // Фолбэк для старых браузеров
+                    this.fallbackCopyToClipboard(ticker);
+                }
+            }
+
+            fallbackCopyToClipboard(text) {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        this.showCopyNotification(text);
+                        console.log('[COPY] Fallback copy successful:', text);
+                    } else {
+                        console.error('[COPY] Fallback copy failed');
+                    }
+                } catch (err) {
+                    console.error('[COPY] Fallback copy error:', err);
+                } finally {
+                    document.body.removeChild(textArea);
+                }
+            }
+
+            showCopyNotification(ticker) {
+                // Удаляем существующие уведомления
+                const existingNotifications = document.querySelectorAll('.copy-notification');
+                existingNotifications.forEach(n => n.remove());
+
+                // Создаём новое уведомление
+                const notification = document.createElement('div');
+                notification.className = 'copy-notification';
+                notification.textContent = `${ticker} скопирован!`;
+                document.body.appendChild(notification);
+
+                // Показываем уведомление
+                setTimeout(() => notification.classList.add('show'), 10);
+
+                // Скрываем и удаляем через 2 секунды
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => notification.remove(), 300);
+                }, 2000);
             }
         }
 
@@ -1396,8 +1510,8 @@ async def get_orders_page() -> HTMLResponse:
         
         // --- Init ---
         document.addEventListener('DOMContentLoaded', () => {
-            // Инициализируем tooltip после загрузки DOM
             densityManager.tooltip = document.getElementById('customTooltip');
+            console.log('[INIT] Tooltip element:', densityManager.tooltip);
             
             densityManager.updateUiSettings();
 

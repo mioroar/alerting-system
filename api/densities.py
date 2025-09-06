@@ -36,21 +36,31 @@ async def get_densities_stats():
     total = len(order_densities)
     by_type = {"LONG": 0, "SHORT": 0}
     by_size = {"small": 0, "medium": 0, "large": 0}
+    by_status = {"normal": 0, "touched": 0}
     
-    for (symbol, order_type, price), density in order_densities.items():
+    for (symbol, price), density in order_densities.items():
+        # Получаем order_type из самого объекта density
+        order_type = density["order_type"]
         by_type[order_type] += 1
         
-        size = density["size_usd"]
+        size = density["current_size_usd"]  # Обновлено поле
         if size < 500_000:
             by_size["small"] += 1
         elif size < 1_000_000:
             by_size["medium"] += 1
         else:
             by_size["large"] += 1
+        
+        # Статистика по статусу "тронутости"
+        if density["touched"] and density["reduction_usd"] > 0:
+            by_status["touched"] += 1
+        else:
+            by_status["normal"] += 1
     
     return {
         "total": total,
         "by_type": by_type,
         "by_size": by_size,
+        "by_status": by_status,
         "connected_clients": len(broadcaster.connections)
     }

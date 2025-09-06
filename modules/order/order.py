@@ -8,7 +8,8 @@ from modules.order.tracker.logic import (
     start_binance_listeners,
     update_tickers_task,
     save_densities_task,
-    cleanup_task
+    cleanup_task,
+    cleanup_price_range_task
 )
 
 
@@ -19,7 +20,8 @@ async def collect_order_info_loop() -> None:
     - WebSocket слушатели для получения данных depth
     - Периодическое обновление списка тикеров
     - Сохранение данных в базу
-    - Очистка устаревших данных
+    - Очистка устаревших данных по времени (каждые 30 минут)
+    - Очистка записей, выходящих за диапазон ±10% от цены (каждые 5 минут)
     """
     logger.info("[ORDER_MAIN] Starting order density tracker loop")
     
@@ -41,6 +43,7 @@ async def collect_order_info_loop() -> None:
         tasks.append(asyncio.create_task(update_tickers_task()))
         tasks.append(asyncio.create_task(save_densities_task()))
         tasks.append(asyncio.create_task(cleanup_task()))
+        tasks.append(asyncio.create_task(cleanup_price_range_task()))
         
         logger.info(f"[ORDER_MAIN] Запущено {len(tasks)} фоновых задач")
         
